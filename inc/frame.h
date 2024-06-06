@@ -24,7 +24,7 @@ namespace VISUAL_MAPPING {
         Camera* get_camera() const { return camera;}
         std::vector<std::shared_ptr<Frame>> get_connected_frames() const { return related_frames;}
         void add_linked_frame(std::shared_ptr<Frame> frame);
-
+        bool in_image(Eigen::Vector2d uv) const;
         int id;
         std::vector<std::shared_ptr<MapPoint>> map_points;
         std::vector<double> features_depth; // depth in meters (z)

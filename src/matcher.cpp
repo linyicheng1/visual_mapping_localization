@@ -37,17 +37,17 @@ namespace VISUAL_MAPPING {
                         min_id = around_id;
                     }
                 }
-                if (min_id != -1 && min_dist < 100) {
+                if (min_id != -1 && min_dist < 1000) {
 //                    if (frame2->features_depth[min_id] > 0)
                     {
                         // 4. check the reprojection error
 //                        Eigen::Vector3d x3D_ = frame2->map_points[min_id]->x3D;
 //                        Eigen::Vector3d x3D_1 = frame1->get_R().transpose() * (x3D_2 - frame1->get_t());
 //                        Eigen::Vector2d uv_1 = frame1->get_camera()->project(x3D_1);
-//                        double error = (uv_1 - frame1->get_features_uv()[i]).norm();
-//                        if (error < 10) {
+                        double error = (uv - frame2->get_features_uv()[min_id]).norm();
+                        if (error < 15) {
                             matches.emplace_back(i, min_id);
-//                        }
+                        }
                     }
                 }
 
@@ -95,8 +95,12 @@ namespace VISUAL_MAPPING {
         // draw matches
 //        cv::Mat img1 = frame1->image.clone();
 //        cv::Mat img2 = frame2->image.clone();
-//        cv::cvtColor(img1, img1, cv::COLOR_GRAY2BGR);
-//        cv::cvtColor(img2, img2, cv::COLOR_GRAY2BGR);
+//        if (img1.channels() == 1) {
+//            cv::cvtColor(img1, img1, cv::COLOR_GRAY2BGR);
+//        }
+//        if (img2.channels() == 1) {
+//            cv::cvtColor(img2, img2, cv::COLOR_GRAY2BGR);
+//        }
 //
 //        for (int i = 0; i < frame1->get_features_uv().size(); i++) {
 //            if (frame1->features_depth[i] > 0) {

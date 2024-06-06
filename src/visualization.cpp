@@ -24,6 +24,8 @@ namespace VISUAL_MAPPING {
                             const Map& map) {
         std::cout << "Running visualization" << std::endl;
         auto frames = map.frames_;
+        std::vector<std::vector<std::shared_ptr<Frame>>> connected_frames = map.connected_frames;
+
         pangolin::CreateWindowAndBind("Map Viewer",1024,768);
         glEnable(GL_DEPTH_TEST);
 
@@ -110,6 +112,26 @@ namespace VISUAL_MAPPING {
 //                last_frame = frame;
 //            }
 
+            // connected frames
+            for (const auto& connected:connected_frames) {
+                std::shared_ptr<Frame> frame0 = connected[0];
+                Eigen::Vector3d t0 = frame0->get_t();
+                for (int i = 1; i < connected.size();i ++) {
+                    std::shared_ptr<Frame> frame1 = connected[i];
+                    if (frame1->id < frame0->id) {
+                        continue;
+                    }
+
+                    Eigen::Vector3d t1 = frame1->get_t();
+
+                    glLineWidth(2);
+                    glColor3f(0.0f,0.0f,1.0f);
+                    glBegin(GL_LINES);
+                    glVertex3f((float)t0[0],(float)t0[1],(float)t0[2]);
+                    glVertex3f((float)t1[0],(float)t1[1],(float)t1[2]);
+                    glEnd();
+                }
+            }
             // map
             for (int i = 0;i < map.max_id; i++) {
                 if (map.map_points.find(i) == map.map_points.end()) {

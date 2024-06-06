@@ -118,10 +118,11 @@ int main() {
     std::vector<std::string> feature_list;
 
     // 2. create frame
+    img_list.resize(100);
     std::vector<std::shared_ptr<Frame>> frames;
     std::shared_ptr<FeatureDetection> detection =
             std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",
-                                               6, 100, 512, 512);
+                                               8, 500, 512, 512);
     for (int i = 0; i < img_list.size(); i ++) {
         cv::Mat img1 = cv::imread(img_list[i].first);
         cv::Mat img2 = cv::imread(img_list[i].second);

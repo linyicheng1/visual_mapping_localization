@@ -17,9 +17,8 @@ namespace VISUAL_MAPPING {
         map.frames_ = frames;
         int map_point_cnt = 0; // map point id
         int frame_cnt = 0; // frame id
-        Matcher matcher;
-        Triangulation triangulation;
 
+        std::cout << "step 1: Constructing initial map points for stereo !" << std::endl;
         for (auto& frame : frames) {// for each frame in the sequence
             for (int i = 0; i < frame->get_features_uv().size(); i++) {
                 Eigen::Vector2d uv = frame->get_features_uv()[i];
@@ -37,10 +36,77 @@ namespace VISUAL_MAPPING {
                     map_point_cnt++;
                 }
             }
+            frame_cnt ++;
+        }
+        std::cout << "Initial constructed " << map_point_cnt << " map points" << std::endl;
 
+        std::cout << "step 2: Find the connected frames !" << std::endl;
+        std::cout << "step 2.1: Find the connected frames by re-projecting the map points to other frames !" << std::endl;
+        std::vector<std::vector<std::shared_ptr<Frame>>> connected_frames;
+        connected_frames.resize(frames.size());
+        for (int i = 0; i < frames.size(); i++) {
+            std::shared_ptr<Frame> frame0 = frames[i];
+            for (int j = i + 1; j < frames.size(); j ++) {
+                std::shared_ptr<Frame> frame1 = frames[j];
+                double dist = (frame0->get_t() - frame1->get_t()).norm();
+                if (dist > 2) {
+                    continue;
+                }
+                int project_success = 0;
+                for (const auto& mp : frame0->map_points) {
+                    if (mp != nullptr) {
+                        Eigen::Vector3d P = mp->x3D;
+                        Eigen::Vector3d P_ = frame1->get_R().transpose() * (P - frame1->get_t());
+                        Eigen::Vector2d uv = frame1->get_camera()->project(P_);
+                        if (frame1->in_image(uv)) {
+                            project_success++;
+                        }
+                        if (project_success > 10) {
+                            connected_frames[i].push_back(frame1);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        std::cout<<"step 2.2:  Find map point connections: "<<std::endl;
+        Matcher matcher;
+
+        // init the connected frames
+        map.connected_frames.resize(frames.size());
+        for (int i = 0;i < frames.size(); i++) {
+            map.connected_frames[i].emplace_back(frames[i]);
+        }
+
+        // match the map points
+        for (int i = 0;i < frames.size(); i++) {
+            std::shared_ptr<Frame> frame0 = frames[i];
+            std::vector<std::shared_ptr<Frame>> frames1 = connected_frames[i];
+
+            for (const auto& frame1 : frames1) {
+                std::vector<std::pair<int, int>> matches = matcher.match_re_projective(frame0, frame1);
+
+                if (matches.size() > 30){// connect frames
+                    frame0->add_linked_frame(frame1);
+                    frame1->add_linked_frame(frame0);
+                    map.connected_frames[i].emplace_back(frame1);
+                    map.connected_frames[frame1->id].emplace_back(frame0);
+                }
+
+                for (const auto& match : matches) {// connect map points
+
+                }
+            }
+        }
+    }
+
+    void Mapping::refine_map() {
+        std::cout << "step 3: Update all map points !" << std::endl;
+        Triangulation triangulation;
+        /**
             // try linking to other frames
             Eigen::Vector3d current_t = frames[frame_cnt]->get_t();
-            /**
             for (int j = frame_cnt+1; j < frames.size(); j++) {
                 Eigen::Vector3d frame_t  = frames[j]->get_t();
                 double dist = (current_t - frame_t).norm();
@@ -115,13 +181,6 @@ namespace VISUAL_MAPPING {
                 }
             }
             **/
-            frame_cnt ++;
-        }
-        std::cout << "Constructed " << map_point_cnt << " map points" << std::endl;
-    }
-
-    void Mapping::refine_map() {
-
 //                    std::cout<<" re projection error: "<<std::endl;
 //                    for (int i = 0; i < prev_error.size(); i++) {
 //                        std::cout << prev_error[i] << " -> " << update_error[i] << std::endl;

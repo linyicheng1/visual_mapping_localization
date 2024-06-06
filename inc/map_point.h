@@ -43,6 +43,7 @@ namespace VISUAL_MAPPING {
 
         std::unordered_map<int, std::shared_ptr<MapPoint>> map_points;
         std::vector<std::shared_ptr<Frame>> frames_;
+        std::vector<std::vector<std::shared_ptr<Frame>>> connected_frames;
     };
 }
 

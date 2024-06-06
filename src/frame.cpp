@@ -91,4 +91,8 @@ namespace VISUAL_MAPPING {
         }
         related_frames.push_back(frame);
     }
+
+    bool Frame::in_image(Eigen::Vector2d uv) const {
+        return uv[0] >= 0 && uv[0] < image.cols && uv[1] >= 0 && uv[1] < image.rows;
+    }
 }
