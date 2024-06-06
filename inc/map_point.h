@@ -6,9 +6,11 @@
 #include <vector>
 #include "memory"
 #include "opencv2/core.hpp"
+#include "frame.h"
 
 namespace VISUAL_MAPPING {
 
+    class Frame;
 
     class MapPoint {
     public:
@@ -40,8 +42,7 @@ namespace VISUAL_MAPPING {
         int max_id = 0;
 
         std::unordered_map<int, std::shared_ptr<MapPoint>> map_points;
-
-
+        std::vector<std::shared_ptr<Frame>> frames_;
     };
 }
 

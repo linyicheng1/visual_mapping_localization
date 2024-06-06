@@ -21,9 +21,9 @@ namespace VISUAL_MAPPING {
     }
 
     void Visualization::run(Visualization* visualization,
-                            const std::vector<Frame> &frames,
                             const Map& map) {
         std::cout << "Running visualization" << std::endl;
+        auto frames = map.frames_;
         pangolin::CreateWindowAndBind("Map Viewer",1024,768);
         glEnable(GL_DEPTH_TEST);
 
@@ -51,7 +51,7 @@ namespace VISUAL_MAPPING {
             d_cam.Activate(s_cam);
             glClearColor(1.0f,1.0f,1.0f,1.0f);
 
-            Frame last_frame = frames[0];
+            std::shared_ptr<Frame> last_frame = frames[0];
 //            for (auto& frame : frames) {
 //                Eigen::Matrix3d R = frame.get_R();
 //                Eigen::Vector3d t = frame.get_t();

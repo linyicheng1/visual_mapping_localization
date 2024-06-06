@@ -7,6 +7,7 @@
 
 namespace VISUAL_MAPPING {
 
+    class MapPoint;
     class Frame {
     public:
         Frame() = default;
@@ -21,8 +22,8 @@ namespace VISUAL_MAPPING {
         std::vector<double> get_features_depth() const { return features_depth;}
         std::vector<int> get_around_features(Eigen::Vector2d uv, double radius);
         Camera* get_camera() const { return camera;}
-        std::vector<Frame*> get_connected_frames() const { return related_frames;}
-        void add_linked_frame(Frame* frame);
+        std::vector<std::shared_ptr<Frame>> get_connected_frames() const { return related_frames;}
+        void add_linked_frame(std::shared_ptr<Frame> frame);
 
         int id;
         std::vector<std::shared_ptr<MapPoint>> map_points;
@@ -40,7 +41,7 @@ namespace VISUAL_MAPPING {
         Eigen::Vector3d t;
 
         // related frames
-        std::vector<Frame*> related_frames;
+        std::vector<std::shared_ptr<Frame>> related_frames;
 
         void assign_features_to_grid();
         std::vector<std::size_t> mGrid[200][200];

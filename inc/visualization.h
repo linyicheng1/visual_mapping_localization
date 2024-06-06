@@ -9,7 +9,7 @@ namespace VISUAL_MAPPING {
     class Visualization {
     public:
         Visualization() = default;
-        static void run(Visualization* visualization, const std::vector<Frame> &frames, const Map& map);
+        static void run(Visualization* visualization, const Map& map);
         void draw_matches(Frame* frame1, Frame* frame2, std::vector<cv::DMatch>& matches);
         void draw_keypoint(Frame* frame);
         void draw_camera_poses(std::vector<Frame>* frames);

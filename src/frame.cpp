@@ -83,7 +83,7 @@ namespace VISUAL_MAPPING {
         }
     }
 
-    void Frame::add_linked_frame(Frame *frame) {
+    void Frame::add_linked_frame(std::shared_ptr<Frame> frame) {
         for (auto &f : related_frames) {
             if (f->id == frame->id) {
                 return;

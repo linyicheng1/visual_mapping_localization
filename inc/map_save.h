@@ -11,8 +11,8 @@ namespace VISUAL_MAPPING {
     public:
         MapSaver() = default;
         ~MapSaver() = default;
-        void save_map(const std::string& filename, const std::vector<Frame> &frames, const Map& map);
-        void load_map(const std::string& filename, std::vector<Frame> &frames, Map& map);
+        void save_map(const std::string& filename, const std::vector<std::shared_ptr<Frame>> &frames, const Map& map);
+        void load_map(const std::string& filename, std::vector<std::shared_ptr<Frame>> &frames, Map& map);
     };
 }
 

@@ -13,7 +13,7 @@ namespace VISUAL_MAPPING {
 
     }
 
-    std::vector<std::pair<int, int>> Matcher::match_re_projective(Frame *frame1, Frame *frame2) {
+    std::vector<std::pair<int, int>> Matcher::match_re_projective(std::shared_ptr<Frame> frame1, std::shared_ptr<Frame> frame2) {
         std::vector<std::pair<int, int>> matches;
         for (int i = 0;i < frame1->map_points.size(); i++) {
             if (frame1->map_points[i] != nullptr) {
@@ -29,12 +29,12 @@ namespace VISUAL_MAPPING {
                 cv::Mat desc_1 = frame1->descriptors.row(i);
                 double min_dist = 1000;
                 int min_id = -1;
-                for (int j = 0; j < around_ids.size();j ++) {
-                    cv::Mat desc_2 = frame2->descriptors.row(around_ids[j]);
+                for (int around_id : around_ids) {
+                    cv::Mat desc_2 = frame2->descriptors.row(around_id);
                     double dist = cv::norm(desc_1, desc_2);
                     if (dist < min_dist) {
                         min_dist = dist;
-                        min_id = around_ids[j];
+                        min_id = around_id;
                     }
                 }
                 if (min_id != -1 && min_dist < 100) {

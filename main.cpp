@@ -118,37 +118,35 @@ int main() {
     std::vector<std::string> feature_list;
 
     // 2. create frame
-    std::vector<Frame> frames;
-//    img_list.erase(img_list.begin(), img_list.begin()+1);
-//    img_list.resize(30);
+    std::vector<std::shared_ptr<Frame>> frames;
     std::shared_ptr<FeatureDetection> detection =
             std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",
-                                               6, 1000, 640, 480);
+                                               6, 100, 512, 512);
     for (int i = 0; i < img_list.size(); i ++) {
-        cv::Mat img1 = cv::imread(img_list[i].first, cv::IMREAD_GRAYSCALE);
-        cv::Mat img2 = cv::imread(img_list[i].second, cv::IMREAD_GRAYSCALE);
-        Frame frame(i, detection, T[i], img1, img2, &cam1, &cam2, T12);
+        cv::Mat img1 = cv::imread(img_list[i].first);
+        cv::Mat img2 = cv::imread(img_list[i].second);
+        auto frame = std::make_shared<Frame>(i, detection, T[i], img1, img2, &cam1, &cam2, T12);
         std::cout<<"frame "<<i<<std::endl;
         frames.push_back(frame);
     }
-//    frames.erase(frames.begin(), frames.begin()+900);
-    // 3. init mapping
+
+    // 3. init mapping and refine
     Mapping mapping;
     mapping.construct_initial_map(frames);
+    mapping.refine_map();
 
-    // 4. refine map
-
+    // 4. save map
     MapSaver mapSaver;
     mapSaver.save_map("map.txt", frames, mapping.map);
-
 
 //    MapSaver mapSaver;
 //    Mapping mapping;
 //    std::vector<Frame> frames;
 //    mapSaver.load_map("map.txt", frames, mapping.map);
+
     // 5. visualization thread
     Visualization vis;
-    std::thread vis_thread(Visualization::run, &vis, std::ref(frames), std::ref(mapping.map));
+    std::thread vis_thread(Visualization::run, &vis, std::ref(mapping.map));
     vis_thread.join();
 
 }

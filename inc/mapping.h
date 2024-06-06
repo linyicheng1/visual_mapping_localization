@@ -9,7 +9,8 @@ namespace VISUAL_MAPPING {
     public:
         Mapping() = default;
         ~Mapping() = default;
-        void construct_initial_map(std::vector<Frame>& frames);
+        void construct_initial_map(std::vector<std::shared_ptr<Frame>>& frames);
+        void refine_map();
         Map map;
     };
 }
