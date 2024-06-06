@@ -7,6 +7,7 @@
 #include "bundle_adjustment.h"
 #include "visualization.h"
 #include "matcher.h"
+#include "detection.h"
 #include "camera.h"
 #include "map_save.h"
 
@@ -120,10 +121,13 @@ int main() {
     std::vector<Frame> frames;
 //    img_list.erase(img_list.begin(), img_list.begin()+1);
 //    img_list.resize(30);
+    std::shared_ptr<FeatureDetection> detection =
+            std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",
+                                               6, 1000, 640, 480);
     for (int i = 0; i < img_list.size(); i ++) {
         cv::Mat img1 = cv::imread(img_list[i].first, cv::IMREAD_GRAYSCALE);
         cv::Mat img2 = cv::imread(img_list[i].second, cv::IMREAD_GRAYSCALE);
-        Frame frame(i, T[i], img1, img2, &cam1, &cam2, T12);
+        Frame frame(i, detection, T[i], img1, img2, &cam1, &cam2, T12);
         std::cout<<"frame "<<i<<std::endl;
         frames.push_back(frame);
     }
@@ -146,5 +150,5 @@ int main() {
     Visualization vis;
     std::thread vis_thread(Visualization::run, &vis, std::ref(frames), std::ref(mapping.map));
     vis_thread.join();
-    
+
 }

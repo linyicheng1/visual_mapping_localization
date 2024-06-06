@@ -12,7 +12,7 @@ namespace VISUAL_MAPPING {
 
     }
 
-    Frame::Frame(int id_, Eigen::Matrix4d T, cv::Mat &image_left, cv::Mat &image_right,
+    Frame::Frame(int id_, std::shared_ptr<FeatureDetection> detector, Eigen::Matrix4d T, cv::Mat &image_left, cv::Mat &image_right,
                  Camera *cam_left, Camera *cam_right, Eigen::Matrix4d &T12) {
         image = image_left;
         id = id_;
@@ -20,11 +20,11 @@ namespace VISUAL_MAPPING {
         R = T.block<3, 3>(0, 0);
         t = T.block<3, 1>(0, 3);
         // 1. detect features
-        Detection detector;
-        detector.detectFeatures(image_left, features_uv, descriptors);
+        detector_ptr = detector;
+        detector_ptr->detectFeatures(image_left, features_uv, descriptors);
         std::vector<Eigen::Vector2d> features_right;
         cv::Mat descriptors_right;
-        detector.detectFeatures(image_right, features_right, descriptors_right);
+        detector_ptr->detectFeatures(image_right, features_right, descriptors_right);
         // 2. compute depth
         Matcher matcher;
         auto matches = matcher.match_stereo(image_left, image_right, features_uv, features_right, descriptors, descriptors_right);

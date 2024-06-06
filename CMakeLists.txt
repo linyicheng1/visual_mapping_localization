@@ -7,6 +7,9 @@ find_package(OpenCV REQUIRED)
 MESSAGE("OPENCV VERSION:")
 MESSAGE(${OpenCV_VERSION})
 
+set(OpenVINO_DIR /home/vio/Code/NN/openvino/l_openvino_toolkit_ubuntu20_2024.0.0.14509.34caeefd078_x86_64/runtime/cmake)
+find_package(OpenVINO REQUIRED)
+
 find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
 
@@ -16,6 +19,7 @@ add_subdirectory(Thirdparty/g2o)
 
 include_directories(
         inc
+        learned_features_inference/inc
         ${PROJECT_SOURCE_DIR}
         ${OpenCV_INCLUDE_DIRS}
         ${EIGEN3_INCLUDE_DIR}
@@ -23,7 +27,14 @@ include_directories(
         ${Pangolin_INCLUDE_DIRS}
 )
 
-add_library(ReusableMapLib
+add_library(FeaturesLib
+        learned_features_inference/src/interface.cpp
+        learned_features_inference/src/extractor.cpp
+        learned_features_inference/src/utils.cpp)
+
+target_link_libraries(FeaturesLib openvino::runtime ${OpenCV_LIBS})
+
+add_library(VisualMappingLib
         src/camera.cpp
         src/matcher.cpp
         src/triangulation.cpp
@@ -36,22 +47,26 @@ add_library(ReusableMapLib
         src/map_save.cpp)
 
 target_link_libraries(
-        ReusableMapLib
+        VisualMappingLib
         ${OpenCV_LIBS}
         ${EIGEN3_LIBS}
         ${Pangolin_LIBRARIES}
         ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
+        FeaturesLib
 )
 
-add_executable(ReusableMap main.cpp)
+add_executable(VisualMapping main.cpp)
 
-target_link_libraries(ReusableMap
-        ReusableMapLib
+target_link_libraries(VisualMapping
+        FeaturesLib
+        VisualMappingLib
+
 )
 
 add_executable(Localization Demo/localization.cpp)
 
 target_link_libraries(Localization
-        ReusableMapLib
+        FeaturesLib
+        VisualMappingLib
 )
 

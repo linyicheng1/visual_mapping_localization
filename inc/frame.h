@@ -3,6 +3,7 @@
 #include "camera.h"
 #include "opencv2/core.hpp"
 #include "map_point.h"
+#include "detection.h"
 
 namespace VISUAL_MAPPING {
 
@@ -10,7 +11,7 @@ namespace VISUAL_MAPPING {
     public:
         Frame() = default;
         ~Frame() = default;
-        Frame(int id_, Eigen::Matrix4d T, cv::Mat& image_left, cv::Mat& image_right, Camera* cam_left, Camera* cam_right, Eigen::Matrix4d& T12);
+        Frame(int id_, std::shared_ptr<FeatureDetection> detection, Eigen::Matrix4d T, cv::Mat& image_left, cv::Mat& image_right, Camera* cam_left, Camera* cam_right, Eigen::Matrix4d& T12);
         Frame(cv::Mat& image, std::vector<Eigen::Vector2d>& features_uv, std::vector<double>& features_depth, cv::Mat& descriptors, Camera* camera);
         Eigen::Matrix3d get_R() const { return R;}
         Eigen::Vector3d get_t() const { return t;}
@@ -43,6 +44,7 @@ namespace VISUAL_MAPPING {
 
         void assign_features_to_grid();
         std::vector<std::size_t> mGrid[200][200];
+        std::shared_ptr<FeatureDetection> detector_ptr;
     };
 }
 
