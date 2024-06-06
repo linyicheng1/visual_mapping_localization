@@ -1,0 +1,3 @@
+[submodule "learned_features_inference"]
+	path = learned_features_inference
+	url = git://github.com/linyicheng1/learned_features_inference.git
