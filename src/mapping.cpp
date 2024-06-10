@@ -3,6 +3,9 @@
 #include "triangulation.h"
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <unordered_map>
+#include "bundle_adjustment.h"
+
 
 namespace VISUAL_MAPPING {
 
@@ -95,15 +98,66 @@ namespace VISUAL_MAPPING {
                 }
 
                 for (const auto& match : matches) {// connect map points
-
+                    const auto& mp0 = frame0->map_points[match.first];
+                    const auto& mp1 = frame1->map_points[match.second];
+                    mp0->add_measurement(frame1, match.second);
+                    mp1->add_measurement(frame0, match.first);
                 }
             }
         }
     }
 
     void Mapping::refine_map() {
-        std::cout << "step 3: Update all map points !" << std::endl;
-        Triangulation triangulation;
+        std::cout << "Refine map step 1: Update all map points !" << std::endl;
+        BundleAdjustment ba;
+        for (const auto& frame : map.frames_) {
+            for (const auto& mp : frame->map_points) {
+                if (mp != nullptr) {
+                    // find all connected map points
+                    std::vector<std::shared_ptr<Frame>> c_frames;
+                    std::vector<int> c_ids;
+                    std::unordered_map<std::shared_ptr<Frame>, int> connected_mps;
+                    for (int i = 0; i < mp->frames.size(); i++) {
+                        if (connected_mps.find(mp->frames[i]) == connected_mps.end()) {
+                            connected_mps[mp->frames[i]] = mp->frame_feature_ids[i];
+                            std::shared_ptr<MapPoint> c_mp = mp->frames[i]->map_points[mp->frame_feature_ids[i]];
+                            for (int j = 0; j < c_mp->frames.size(); j++) {
+                                if (connected_mps.find(c_mp->frames[j]) == connected_mps.end()) {
+                                    connected_mps[c_mp->frames[j]] = c_mp->frame_feature_ids[j];
+                                }
+                            }
+                        }
+                    }
+                    for (const auto& kv : connected_mps) {
+                        c_frames.push_back(kv.first);
+                        c_ids.push_back(kv.second);
+                    }
+                    // optimize the map point position
+                    if (c_frames.size() > 1) {
+                        std::vector<int> status;
+                        Eigen::Vector3d xyz = mp->x3D;
+                        ba.optimize_structure(c_frames, c_ids, xyz, status);
+                        // update the map point position
+                        mp->x3D = xyz;
+                        // fuse the map points
+                        for (int i = 0; i < c_frames.size(); i++) {
+                            if (status[i] == 1) {
+                                map.remove_map_point(c_frames[i]->map_points[c_ids[i]]->id);
+                                c_frames[i]->map_points[c_ids[i]] = mp;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        std::cout << "Refine map step 2: update all frame pose !" << std::endl;
+        for (const auto& frame : map.frames_) {
+            ba.optimize_pose(frame);
+        }
+
+        std::cout << "Refine map step 3: full bundle adjustment !" << std::endl;
+
         /**
             // try linking to other frames
             Eigen::Vector3d current_t = frames[frame_cnt]->get_t();

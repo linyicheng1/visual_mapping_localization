@@ -25,6 +25,11 @@ namespace VISUAL_MAPPING {
         }
     }
 
+    void MapPoint::add_measurement(std::shared_ptr<Frame> frame, int feature_id) {
+        frames.push_back(frame);
+        frame_feature_ids.push_back(feature_id);
+    }
+
     int Map::add_map_point(std::shared_ptr<MapPoint> map_point) {
         // check if the map point already exists
         if (map_points.find(map_point->id) == map_points.end()) {

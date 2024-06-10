@@ -19,6 +19,8 @@ namespace VISUAL_MAPPING {
         MapPoint(Eigen::Vector2d uv, Eigen::Vector3d x3D, double cov, int frame_id, int feature_id, int id);
         void add_frame(int frame_id, int feature_id, double parallax, Eigen::Vector2d uv, Eigen::Vector3d x3D_);
 
+        void add_measurement(std::shared_ptr<Frame> frame, int feature_id);
+
         Eigen::Vector3d x3D;
         std::vector<Eigen::Vector2d> features_uv;
         std::vector<int> frame_ids;
@@ -28,6 +30,10 @@ namespace VISUAL_MAPPING {
         std::vector<double> cov;
         double min_cov;
         cv::Mat descriptor;
+
+        //
+        std::vector<std::shared_ptr<Frame>> frames;
+        std::vector<int> frame_feature_ids;
     };
 
     class Map {

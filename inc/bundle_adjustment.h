@@ -1,6 +1,7 @@
 #ifndef __BUNDLE_ADJUSTMENT_H_
 #define __BUNDLE_ADJUSTMENT_H_
 #include "frame.h"
+#include "map_point.h"
 #include "Eigen/Dense"
 #include "Thirdparty/g2o/g2o/core/sparse_block_matrix.h"
 #include "Thirdparty/g2o/g2o/core/block_solver.h"
@@ -13,6 +14,57 @@
 
 
 namespace VISUAL_MAPPING {
+
+    class VertexPointXYZ: public g2o::BaseVertex<3, Eigen::Vector3d>{
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+        VertexPointXYZ(){}
+
+        bool read(std::istream& in) override {
+            in >> _estimate[0] >> _estimate[1] >> _estimate[2];
+            return true;
+        }
+
+        bool write(std::ostream& out) const override {
+            out << _estimate[0] << " " << _estimate[1] << " " << _estimate[2];
+            return true;
+        }
+
+        virtual void setToOriginImpl() override {
+            _estimate.fill(0);
+        }
+
+        virtual void oplusImpl(const double* update) override {
+            Eigen::Vector3d::ConstMapType v(update);
+            _estimate += v;
+        }
+    };
+
+    class EdgeSE3ProjectXYZOnlyStructure: public g2o::BaseUnaryEdge<2, Eigen::Vector2d, VertexPointXYZ>{
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+        EdgeSE3ProjectXYZOnlyStructure(){}
+
+        virtual void computeError() override {
+            const VertexPointXYZ* v = static_cast<const VertexPointXYZ*>(_vertices[0]);
+            Eigen::Vector3d Pc = pose_ * v->estimate();
+            Eigen::Vector2d projection = pCamera->project(Pc);
+            _error = projection - _measurement;
+        }
+
+        virtual void linearizeOplus() override {
+            const VertexPointXYZ* v = static_cast<const VertexPointXYZ*>(_vertices[0]);
+            Eigen::Vector3d Pc = pose_ * v->estimate();
+            Eigen::Matrix<double, 2, 3> m = pCamera->projectJac(Pc);
+            _jacobianOplusXi = -m * pose_.rotation();
+        }
+
+        virtual bool read(std::istream& in) override {return true;}
+        virtual bool write(std::ostream& out) const override {return true;}
+        Camera* pCamera;
+        Eigen::Isometry3d pose_; // 相机位姿
+    };
 
     class  EdgeSE3ProjectXYZOnlyPose: public  g2o::BaseUnaryEdge<2, Eigen::Vector2d, g2o::VertexSE3Expmap>{
     public:
@@ -45,9 +97,10 @@ namespace VISUAL_MAPPING {
     class BundleAdjustment {
     public:
         BundleAdjustment() = default;
-        std::vector<bool> optimize_pose(Frame& frame);
+        std::vector<bool> optimize_pose(std::shared_ptr<Frame> frame);
         void optimize_ba(std::vector<Frame>* frames);
-        void optimize_structure(std::vector<Frame>* frames);
+        void optimize_structure(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<int>& ids,
+                                Eigen::Vector3d& xyz, std::vector<int>& status);
     private:
 
     };
