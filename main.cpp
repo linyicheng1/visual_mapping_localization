@@ -118,7 +118,7 @@ int main() {
     std::vector<std::string> feature_list;
 
     // 2. create frame
-    img_list.resize(100);
+    img_list.resize(10);
     std::vector<std::shared_ptr<Frame>> frames;
     std::shared_ptr<FeatureDetection> detection =
             std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",

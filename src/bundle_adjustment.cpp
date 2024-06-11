@@ -46,6 +46,14 @@ namespace VISUAL_MAPPING {
         _jacobianOplusXi = -pCamera->projectJac(xyz_trans) * SE3deriv;
     }
 
+    void EdgeSE3ProjectXYZOnlyStructure::linearizeOplus() {
+        g2o::VertexSBAPointXYZ *vi = static_cast<g2o::VertexSBAPointXYZ *>(_vertices[0]);
+        Eigen::Vector3d xyz = vi->estimate();
+        Eigen::Vector3d xyz_trans = Pose_ * xyz;
+        Eigen::Matrix<double, 2, 3> m = pCamera->projectJac(xyz_trans);
+        _jacobianOplusXi =  - m * Pose_.rotation();
+    }
+
     void BundleAdjustment::optimize_ba(std::vector<Frame> *frames) {
 
     }
@@ -54,47 +62,70 @@ namespace VISUAL_MAPPING {
     void BundleAdjustment::optimize_structure(const std::vector<std::shared_ptr<Frame>>& frames,
                                               const std::vector<int>& ids,
                                               Eigen::Vector3d& xyz, std::vector<int>& status) {
+//        std::cout<<"xyz: "<<xyz.transpose()<<std::endl;
         g2o::SparseOptimizer optimizer;
+        optimizer.setVerbose(false);
         // 选择线性求解器
-        g2o::BlockSolverX::LinearSolverType* linearSolver =
-                new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
+        auto* linearSolver = new g2o::LinearSolverDense<g2o::BlockSolver_3_2::PoseMatrixType>();
 
         // 选择块求解器
-        auto* solver_ptr = new g2o::BlockSolverX(linearSolver);
+        auto* solver_ptr = new g2o::BlockSolver_3_2(linearSolver);
 
         // 使用Levenberg-Marquardt算法
         auto* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
         optimizer.setAlgorithm(solver);
 
         // 添加顶点（地图点）
-        auto* v = new VertexPointXYZ();
+        auto* v = new g2o::VertexSBAPointXYZ();
         v->setId(0);
         v->setEstimate(xyz); // 初始估计值
         optimizer.addVertex(v);
 
         // 添加边（观测值）
+        std::vector<EdgeSE3ProjectXYZOnlyStructure*> edges;
         for (int i = 0; i < frames.size(); ++i) {
             const auto& frame = frames[i];
             int id = ids[i];
-            if (frame->map_points[id] == nullptr) {
-                continue;
-            }
-            Eigen::Isometry3d pose(frame->get_T());
 
             auto* e = new EdgeSE3ProjectXYZOnlyStructure();
-            e->pose_ = pose;
             e->pCamera = frame->camera;
-
+            Eigen::Isometry3d pose(frame->get_T());
+            e->Pose_ = pose.inverse();
             e->setVertex(0, v);
             e->setMeasurement(frame->features_uv[id]); // 观测值
 
+            e->setId(i);
             e->setInformation(Eigen::Matrix2d::Identity());
             optimizer.addEdge(e);
+            edges.emplace_back(e);
         }
-
+//        std::cout<<"edges size: "<<edges.size()<<std::endl;
         // 开始优化
-        optimizer.initializeOptimization();
-        optimizer.optimize(10);
+        int num = 2;
+        status.resize(frames.size(), 0);
+        for (size_t it= 0;it < num; it ++)
+        {
+            // initial pose
+            v->setEstimate(xyz); // 初始估计值
+
+            optimizer.initializeOptimization(0);
+            optimizer.optimize(10);
+
+            status[0] = 1;
+            for (int i = 1;i < frames.size();i ++) {
+                const auto& e = edges[i];
+                e->computeError();
+                if (e->chi2() > 5.991) {
+                    e->setLevel(1);
+                    status[i] = 0;
+                } else {
+                    e->setLevel(0);
+                    status[i] = 1;
+                }
+            }
+        }
+//        std::cout<<" Optimized position: "<<v->estimate().transpose()<<std::endl;
+        xyz = v->estimate();
     }
 
     std::vector<bool> BundleAdjustment::optimize_pose(std::shared_ptr<Frame> frame) {
@@ -140,6 +171,7 @@ namespace VISUAL_MAPPING {
             e->pCamera= frame->camera;
             e->Xw = frame->map_points[i]->x3D;
             e->setId(i);
+            e->setLevel(0);
 
             optimizer.addEdge(e);
             vpEdgesMono.push_back(e);
@@ -176,6 +208,5 @@ namespace VISUAL_MAPPING {
         }
         return inliers;
     }
-
 } // namespace reusable_map
 

@@ -101,7 +101,9 @@ namespace VISUAL_MAPPING {
                     const auto& mp0 = frame0->map_points[match.first];
                     const auto& mp1 = frame1->map_points[match.second];
                     mp0->add_measurement(frame1, match.second);
-                    mp1->add_measurement(frame0, match.first);
+                    if (mp1 != nullptr) {
+                        mp1->add_measurement(frame0, match.first);
+                    }
                 }
             }
         }
@@ -109,9 +111,11 @@ namespace VISUAL_MAPPING {
 
     void Mapping::refine_map() {
         std::cout << "Refine map step 1: Update all map points !" << std::endl;
+        std::cout<<" map points size: "<<map.map_points_count<<std::endl;
         BundleAdjustment ba;
         for (const auto& frame : map.frames_) {
-            for (const auto& mp : frame->map_points) {
+            for (int mp_id = 0; mp_id < frame->map_points.size(); mp_id ++) {
+                const auto& mp = frame->map_points[mp_id];
                 if (mp != nullptr) {
                     // find all connected map points
                     std::vector<std::shared_ptr<Frame>> c_frames;
@@ -121,40 +125,93 @@ namespace VISUAL_MAPPING {
                         if (connected_mps.find(mp->frames[i]) == connected_mps.end()) {
                             connected_mps[mp->frames[i]] = mp->frame_feature_ids[i];
                             std::shared_ptr<MapPoint> c_mp = mp->frames[i]->map_points[mp->frame_feature_ids[i]];
-                            for (int j = 0; j < c_mp->frames.size(); j++) {
-                                if (connected_mps.find(c_mp->frames[j]) == connected_mps.end()) {
-                                    connected_mps[c_mp->frames[j]] = c_mp->frame_feature_ids[j];
+                            if (c_mp != nullptr) {
+                                for (int j = 0; j < c_mp->frames.size(); j++) {
+                                    if (connected_mps.find(c_mp->frames[j]) == connected_mps.end()) {
+                                        connected_mps[c_mp->frames[j]] = c_mp->frame_feature_ids[j];
+                                    }
                                 }
                             }
                         }
                     }
+                    // add current frame
+                    c_frames.push_back(frame);
+                    c_ids.push_back(mp_id);
+
                     for (const auto& kv : connected_mps) {
+                        if (kv.first == frame) {
+                            continue;
+                        }
                         c_frames.push_back(kv.first);
                         c_ids.push_back(kv.second);
                     }
                     // optimize the map point position
                     if (c_frames.size() > 1) {
-                        std::vector<int> status;
+                        // visualize the connected frames and project the map point
+//                        {
+//                            Eigen::Vector3d xyz = mp->x3D;
+//                            for (int i = 0; i < c_frames.size(); i++){
+//                                cv::Mat show = c_frames[i]->image.clone();
+//                                if (show.channels() == 1) {
+//                                    cv::cvtColor(show, show, cv::COLOR_GRAY2BGR);
+//                                }
+//                                cv::circle(show, cv::Point((int)c_frames[i]->get_features_uv()[c_ids[i]][0], (int)c_frames[i]->get_features_uv()[c_ids[i]][1]), 4, cv::Scalar(0, 0, 255), 2);
+//                                Eigen::Vector2d uv = c_frames[i]->get_camera()->project(c_frames[i]->get_R().transpose() * (xyz - c_frames[i]->get_t()));
+//                                cv::circle(show, cv::Point((int)uv[0], (int)uv[1]), 2, cv::Scalar(0, 255, 0), 2);
+//                                cv::imwrite("show" + std::to_string(i) + ".png", show);
+//                            }
+//                        }
+//                        double error = 0, update_error = 0;
                         Eigen::Vector3d xyz = mp->x3D;
+//                        for (int i = 0; i < c_frames.size(); i++){
+//                            Eigen::Vector2d uv = c_frames[i]->get_camera()->project(c_frames[i]->get_R().transpose() * (xyz - c_frames[i]->get_t()));
+//                            error += (uv - c_frames[i]->get_features_uv()[c_ids[i]]).norm();
+//                        }
+                        std::vector<int> status(c_frames.size(), 1);
                         ba.optimize_structure(c_frames, c_ids, xyz, status);
                         // update the map point position
                         mp->x3D = xyz;
+//                        for (int i = 0; i < c_frames.size(); i++){
+//                            Eigen::Vector2d uv = c_frames[i]->get_camera()->project(c_frames[i]->get_R().transpose() * (xyz - c_frames[i]->get_t()));
+//                            double e = (uv - c_frames[i]->get_features_uv()[c_ids[i]]).norm();
+//                            update_error += e;
+//                        }
+//                        std::cout << "error: " << error << " -> " << update_error << std::endl;
+
+                        // visualize the connected frames and project the map point
+//                        {
+//                            for (int i = 0; i < c_frames.size(); i++){
+//                                cv::Mat show = c_frames[i]->image.clone();
+//                                if (show.channels() == 1) {
+//                                    cv::cvtColor(show, show, cv::COLOR_GRAY2BGR);
+//                                }
+//                                cv::circle(show, cv::Point((int)c_frames[i]->get_features_uv()[c_ids[i]][0], (int)c_frames[i]->get_features_uv()[c_ids[i]][1]), 4, cv::Scalar(0, 0, 255), 2);
+//                                Eigen::Vector2d uv = c_frames[i]->get_camera()->project(c_frames[i]->get_R().transpose() * (xyz - c_frames[i]->get_t()));
+//                                cv::circle(show, cv::Point((int)uv[0], (int)uv[1]), 2, cv::Scalar(0, 255, 0), 2);
+//                                cv::imwrite("u_show" + std::to_string(i) + ".png", show);
+//                            }
+//                        }
+
                         // fuse the map points
                         for (int i = 0; i < c_frames.size(); i++) {
-                            if (status[i] == 1) {
-                                map.remove_map_point(c_frames[i]->map_points[c_ids[i]]->id);
+                            if (status[i] == 1 && c_frames[i]->map_points[c_ids[i]] != mp) {
+                                if (c_frames[i]->map_points[c_ids[i]] != nullptr) {
+                                    map.remove_map_point(c_frames[i]->map_points[c_ids[i]]->id);
+                                }
                                 c_frames[i]->map_points[c_ids[i]] = mp;
                             }
                         }
+
                     }
                 }
             }
         }
+        std::cout<<" map points size: "<<map.map_points_count<<std::endl;
 
         std::cout << "Refine map step 2: update all frame pose !" << std::endl;
-        for (const auto& frame : map.frames_) {
-            ba.optimize_pose(frame);
-        }
+//        for (const auto& frame : map.frames_) {
+//            ba.optimize_pose(frame);
+//        }
 
         std::cout << "Refine map step 3: full bundle adjustment !" << std::endl;
 

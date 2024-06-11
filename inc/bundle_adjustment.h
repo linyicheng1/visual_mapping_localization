@@ -15,55 +15,29 @@
 
 namespace VISUAL_MAPPING {
 
-    class VertexPointXYZ: public g2o::BaseVertex<3, Eigen::Vector3d>{
-    public:
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-        VertexPointXYZ(){}
-
-        bool read(std::istream& in) override {
-            in >> _estimate[0] >> _estimate[1] >> _estimate[2];
-            return true;
-        }
-
-        bool write(std::ostream& out) const override {
-            out << _estimate[0] << " " << _estimate[1] << " " << _estimate[2];
-            return true;
-        }
-
-        virtual void setToOriginImpl() override {
-            _estimate.fill(0);
-        }
-
-        virtual void oplusImpl(const double* update) override {
-            Eigen::Vector3d::ConstMapType v(update);
-            _estimate += v;
-        }
-    };
-
-    class EdgeSE3ProjectXYZOnlyStructure: public g2o::BaseUnaryEdge<2, Eigen::Vector2d, VertexPointXYZ>{
+class EdgeSE3ProjectXYZOnlyStructure: public g2o::BaseUnaryEdge<2, Eigen::Vector2d, g2o::VertexSBAPointXYZ>{
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         EdgeSE3ProjectXYZOnlyStructure(){}
 
         virtual void computeError() override {
-            const VertexPointXYZ* v = static_cast<const VertexPointXYZ*>(_vertices[0]);
-            Eigen::Vector3d Pc = pose_ * v->estimate();
-            Eigen::Vector2d projection = pCamera->project(Pc);
-            _error = projection - _measurement;
+            const g2o::VertexSBAPointXYZ* v0 = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
+            Eigen::Vector2d obs(_measurement);
+            _error = obs - pCamera->project(Pose_ * v0->estimate());
         }
 
-        virtual void linearizeOplus() override {
-            const VertexPointXYZ* v = static_cast<const VertexPointXYZ*>(_vertices[0]);
-            Eigen::Vector3d Pc = pose_ * v->estimate();
-            Eigen::Matrix<double, 2, 3> m = pCamera->projectJac(Pc);
-            _jacobianOplusXi = -m * pose_.rotation();
+        virtual void linearizeOplus() override;
+
+        bool isDepthPositive() {
+            const g2o::VertexSBAPointXYZ* v0 = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
+            return (Pose_ * v0->estimate())(2)>0.0;
         }
 
         virtual bool read(std::istream& in) override {return true;}
         virtual bool write(std::ostream& out) const override {return true;}
         Camera* pCamera;
-        Eigen::Isometry3d pose_; // 相机位姿
+        Eigen::Isometry3d Pose_;
     };
 
     class  EdgeSE3ProjectXYZOnlyPose: public  g2o::BaseUnaryEdge<2, Eigen::Vector2d, g2o::VertexSE3Expmap>{
