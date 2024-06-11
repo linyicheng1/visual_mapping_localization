@@ -130,12 +130,13 @@ namespace VISUAL_MAPPING {
 
     std::vector<bool> BundleAdjustment::optimize_pose(std::shared_ptr<Frame> frame) {
         g2o::SparseOptimizer optimizer;
+        optimizer.setVerbose(false);
         g2o::BlockSolver_6_3::LinearSolverType *linearSolver;
         linearSolver = new g2o::LinearSolverDense<g2o::BlockSolver_6_3::PoseMatrixType>();
 
         auto *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
 
-        g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        auto *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
         optimizer.setAlgorithm(solver);
 
         int nInitialCorrespondences = 0;
@@ -144,7 +145,7 @@ namespace VISUAL_MAPPING {
         auto * vSE3 = new g2o::VertexSE3Expmap();
         Eigen::Matrix3d Rcw = frame->get_R();
         Eigen::Vector3d tcw = frame->get_t();
-        vSE3->setEstimate(g2o::SE3Quat(Rcw, tcw));
+        vSE3->setEstimate(g2o::SE3Quat(Rcw.transpose(), -Rcw.transpose()*tcw));
         vSE3->setId(0);
         vSE3->setFixed(false);
         optimizer.addVertex(vSE3);
@@ -197,7 +198,7 @@ namespace VISUAL_MAPPING {
         }
 
         // 4. set frame pose
-        g2o::SE3Quat SE3quat = vSE3->estimate();
+        g2o::SE3Quat SE3quat = vSE3->estimate().inverse();
         frame->set_T(SE3quat.to_homogeneous_matrix());
         // 5. outliers
         for (const auto& e : vpEdgesMono) {

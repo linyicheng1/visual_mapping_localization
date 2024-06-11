@@ -209,9 +209,54 @@ namespace VISUAL_MAPPING {
         std::cout<<" map points size: "<<map.map_points_count<<std::endl;
 
         std::cout << "Refine map step 2: update all frame pose !" << std::endl;
-//        for (const auto& frame : map.frames_) {
-//            ba.optimize_pose(frame);
-//        }
+        for (const auto& frame : map.frames_) {
+            // 1. compute the projection error
+//            cv::Mat show = frame->image.clone();
+//            if (show.channels() == 1) {
+//                cv::cvtColor(show, show, cv::COLOR_GRAY2BGR);
+//            }
+//            double sum_error = 0;
+//            for (int i = 0;i < frame->map_points.size(); i++) {
+//                const auto& mp = frame->map_points[i];
+//                if (mp != nullptr) {
+//                    Eigen::Vector3d P = mp->x3D;
+//                    Eigen::Vector3d P_ = frame->get_R().transpose() * (P - frame->get_t());
+//                    Eigen::Vector2d uv = frame->get_camera()->project(P_);
+//                    double error = (uv - frame->get_features_uv()[i]).norm();
+//                    sum_error += error;
+//                    cv::circle(show, cv::Point((int)uv[0], (int)uv[1]), 4, cv::Scalar(0, 255, 0), 2);
+//                    cv::circle(show, cv::Point((int)frame->get_features_uv()[i][0], (int)frame->get_features_uv()[i][1]), 2, cv::Scalar(0, 0, 255), 2);
+//                }
+//            }
+//            cv::imwrite("show.png", show);
+//            std::cout<<" frame id: "<<frame->id<<" error: "<<sum_error<<std::endl;
+
+            // 2. pose optimization
+            ba.optimize_pose(frame);
+
+            // 3. compute the projection error after optimization
+//            show = frame->image.clone();
+//            if (show.channels() == 1) {
+//                cv::cvtColor(show, show, cv::COLOR_GRAY2BGR);
+//            }
+//            sum_error = 0;
+//            for (int i = 0;i < frame->map_points.size(); i++) {
+//                const auto& mp = frame->map_points[i];
+//                if (mp != nullptr) {
+//                    Eigen::Vector3d P = mp->x3D;
+//                    Eigen::Vector3d P_ = frame->get_R().transpose() * (P - frame->get_t());
+//                    Eigen::Vector2d uv = frame->get_camera()->project(P_);
+//                    double error = (uv - frame->get_features_uv()[i]).norm();
+//                    sum_error += error;
+//                    cv::circle(show, cv::Point((int)uv[0], (int)uv[1]), 4, cv::Scalar(0, 255, 0), 2);
+//                    cv::circle(show, cv::Point((int)frame->get_features_uv()[i][0], (int)frame->get_features_uv()[i][1]), 2, cv::Scalar(0, 0, 255), 2);
+//                }
+//            }
+//            cv::imwrite("u_show.png", show);
+//            std::cout<<" frame id: "<<frame->id<<" error: "<<sum_error<<std::endl;
+//            std::cout<<"here"<<std::endl;
+        }
+
 
         std::cout << "Refine map step 3: full bundle adjustment !" << std::endl;
 
