@@ -118,7 +118,7 @@ int main() {
     std::vector<std::string> feature_list;
 
     // 2. create frame
-    img_list.resize(10);
+//    img_list.resize(200);
     std::vector<std::shared_ptr<Frame>> frames;
     std::shared_ptr<FeatureDetection> detection =
             std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",
@@ -134,7 +134,8 @@ int main() {
     // 3. init mapping and refine
     Mapping mapping;
     mapping.construct_initial_map(frames);
-    for (int i = 0;i < 5; i++) {
+    for (int i = 0;i < 3; i++) {
+        std::cout<<"start refine map "<<i<<std::endl;
         mapping.refine_map();
     }
 

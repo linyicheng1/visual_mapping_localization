@@ -257,13 +257,13 @@ namespace VISUAL_MAPPING {
         std::vector<EdgeSE3ProjectXYZOnlyPose*> vpEdgesMono;
         std::vector<bool> inliers;
         vpEdgesMono.reserve(frame->map_points.size());
-        inliers.resize(frame->map_points.size(), false);
+        inliers.resize(frame->map_points.size(), true);
         for (int i = 0; i < frame->map_points.size(); i++) {
             if (frame->map_points[i] == nullptr) {
                 continue;
             }
             nInitialCorrespondences++;
-            EdgeSE3ProjectXYZOnlyPose* e = new EdgeSE3ProjectXYZOnlyPose();
+            auto* e = new EdgeSE3ProjectXYZOnlyPose();
 
             e->setVertex(0, vSE3);
             e->setMeasurement(frame->features_uv[i]);
@@ -281,21 +281,27 @@ namespace VISUAL_MAPPING {
             vpEdgesMono.push_back(e);
         }
 
+        if (nInitialCorrespondences < 3) {
+            return inliers;
+        }
+
         // 3. optimize
         for (size_t it= 0;it < 4; it ++)
         {
             // initial pose
-            vSE3->setEstimate(g2o::SE3Quat(Rcw, tcw));
-
+            vSE3->setEstimate(g2o::SE3Quat(Rcw.transpose(), -Rcw.transpose()*tcw));
             optimizer.initializeOptimization(0);
             optimizer.optimize(10);
 
+            int in = 0,  out = 0;
             for (auto e : vpEdgesMono) {
                 e->computeError();
-                if (e->chi2() > 5.991 || !e->isDepthPositive()) {
+                if (e->chi2() > 5.991) {
                     e->setLevel(1);
+                    out ++;
                 } else {
                     e->setLevel(0);
+                    in ++;
                 }
             }
         }
@@ -308,6 +314,8 @@ namespace VISUAL_MAPPING {
             e->computeError();
             if (e->chi2() < 5.991 && e->isDepthPositive()) {
                 inliers[e->id()] = true;
+            } else {
+                inliers[e->id()] = false;
             }
         }
         return inliers;
