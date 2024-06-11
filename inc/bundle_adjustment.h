@@ -16,7 +16,7 @@
 namespace VISUAL_MAPPING {
 
 
-class EdgeSE3ProjectXYZOnlyStructure: public g2o::BaseUnaryEdge<2, Eigen::Vector2d, g2o::VertexSBAPointXYZ>{
+    class EdgeSE3ProjectXYZOnlyStructure: public g2o::BaseUnaryEdge<2, Eigen::Vector2d, g2o::VertexSBAPointXYZ>{
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
         EdgeSE3ProjectXYZOnlyStructure(){}
@@ -68,11 +68,37 @@ class EdgeSE3ProjectXYZOnlyStructure: public g2o::BaseUnaryEdge<2, Eigen::Vector
         Camera* pCamera;
     };
 
+    class EdgeSE3ProjectXYZ: public g2o::BaseBinaryEdge<2, Eigen::Vector2d, g2o::VertexSBAPointXYZ, g2o::VertexSE3Expmap> {
+    public:
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+        EdgeSE3ProjectXYZ(){}
+        virtual bool read(std::istream& in) override {return true;}
+        virtual bool write(std::ostream& out) const override {return true;}
+
+        void computeError()  {
+            const g2o::VertexSE3Expmap* v1 = static_cast<const g2o::VertexSE3Expmap*>(_vertices[1]);
+            const g2o::VertexSBAPointXYZ* v2 = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
+            Eigen::Vector2d obs(_measurement);
+            _error = obs-pCamera->project(v1->estimate().map(v2->estimate()));
+        }
+
+        bool isDepthPositive() {
+            const g2o::VertexSE3Expmap* v1 = static_cast<const g2o::VertexSE3Expmap*>(_vertices[1]);
+            const g2o::VertexSBAPointXYZ* v2 = static_cast<const g2o::VertexSBAPointXYZ*>(_vertices[0]);
+            return ((v1->estimate().map(v2->estimate()))(2)>0.0);
+        }
+
+        virtual void linearizeOplus();
+
+        Camera* pCamera;
+    };
+
     class BundleAdjustment {
     public:
         BundleAdjustment() = default;
         std::vector<bool> optimize_pose(std::shared_ptr<Frame> frame);
-        void optimize_ba(std::vector<Frame>* frames);
+        void optimize_ba(const Map& frames);
         void optimize_structure(const std::vector<std::shared_ptr<Frame>>& frames, const std::vector<int>& ids,
                                 Eigen::Vector3d& xyz, std::vector<int>& status);
     private:

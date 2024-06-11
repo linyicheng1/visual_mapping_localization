@@ -54,8 +54,111 @@ namespace VISUAL_MAPPING {
         _jacobianOplusXi =  - m * Pose_.rotation();
     }
 
-    void BundleAdjustment::optimize_ba(std::vector<Frame> *frames) {
+    void EdgeSE3ProjectXYZ::linearizeOplus() {
+        g2o::VertexSE3Expmap * vj = static_cast<g2o::VertexSE3Expmap *>(_vertices[1]);
+        g2o::SE3Quat T(vj->estimate());
+        g2o::VertexSBAPointXYZ* vi = static_cast<g2o::VertexSBAPointXYZ*>(_vertices[0]);
+        Eigen::Vector3d xyz = vi->estimate();
+        Eigen::Vector3d xyz_trans = T.map(xyz);
 
+        double x = xyz_trans[0];
+        double y = xyz_trans[1];
+        double z = xyz_trans[2];
+
+        auto projectJac = -pCamera->projectJac(xyz_trans);
+
+        _jacobianOplusXi =  projectJac * T.rotation().toRotationMatrix();
+
+        Eigen::Matrix<double,3,6> SE3deriv;
+        SE3deriv << 0.f, z,   -y, 1.f, 0.f, 0.f,
+                -z , 0.f, x, 0.f, 1.f, 0.f,
+                y ,  -x , 0.f, 0.f, 0.f, 1.f;
+
+        _jacobianOplusXj = projectJac * SE3deriv;
+    }
+
+    void BundleAdjustment::optimize_ba(const Map& map) {
+        g2o::SparseOptimizer optimizer;
+        optimizer.setVerbose(false);
+
+        g2o::BlockSolver_6_3::LinearSolverType *linearSolver;
+        linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
+
+        auto *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
+
+        auto *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        optimizer.setAlgorithm(solver);
+
+        // add camera vertex
+        int max_frame_id = 0;
+        std::unordered_map<int , g2o::VertexSE3Expmap*> camera_vertex;
+        for (const auto& frame : map.frames_) {
+            auto * vSE3 = new g2o::VertexSE3Expmap();
+            Eigen::Matrix3d Rcw = frame->get_R();
+            Eigen::Vector3d tcw = frame->get_t();
+            vSE3->setEstimate(g2o::SE3Quat(Rcw.transpose(), -Rcw.transpose()*tcw));
+            vSE3->setId(frame->id);
+            if (frame->id < 2) {
+                vSE3->setFixed(true);
+            } else {
+                vSE3->setFixed(false);
+            }
+            optimizer.addVertex(vSE3);
+            camera_vertex[frame->id] = vSE3;
+            max_frame_id = std::max(max_frame_id, frame->id);
+        }
+
+        // add map point vertex and edge
+        std::unordered_map<int, g2o::VertexSBAPointXYZ*> map_vertex;
+        for (const auto& mp : map.map_points) {
+            if (mp.second == nullptr) {
+                continue;
+            }
+            auto* v = new g2o::VertexSBAPointXYZ();
+            v->setId(max_frame_id + 1 + mp.second->id);
+            v->setEstimate(mp.second->x3D);
+            v->setMarginalized(true);
+            optimizer.addVertex(v);
+            map_vertex[mp.second->id] = v;
+
+            for (int i = 0; i < mp.second->frames.size(); i++) {
+                const auto &c_frame = mp.second->frames[i];
+                const int c_id = mp.second->frame_feature_ids[i];
+                const auto c_mp = c_frame->map_points[c_id];
+
+                if (c_mp != mp.second) {
+                    continue;
+                }
+
+                auto* e = new EdgeSE3ProjectXYZ();
+                e->setVertex(0, v);
+                e->setVertex(1, camera_vertex[mp.second->frames[i]->id]);
+                e->setMeasurement(c_frame->features_uv[c_id]);
+                e->setInformation(Eigen::Matrix2d::Identity());
+                e->pCamera = mp.second->frames[i]->camera;
+                optimizer.addEdge(e);
+            }
+        }
+
+        // optimize
+        optimizer.initializeOptimization();
+        optimizer.optimize(10);
+
+        // update frame pose
+        for (const auto& frame : map.frames_) {
+            g2o::VertexSE3Expmap* vSE3 = camera_vertex[frame->id];
+            g2o::SE3Quat SE3quat = vSE3->estimate().inverse();
+            frame->set_T(SE3quat.to_homogeneous_matrix());
+        }
+
+        // update map points
+        for (const auto& mp : map.map_points) {
+            if (mp.second == nullptr) {
+                continue;
+            }
+            g2o::VertexSBAPointXYZ* v = map_vertex[mp.second->id];
+            mp.second->x3D = v->estimate();
+        }
     }
 
 
@@ -209,5 +312,6 @@ namespace VISUAL_MAPPING {
         }
         return inliers;
     }
+
 } // namespace reusable_map
 

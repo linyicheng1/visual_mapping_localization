@@ -134,7 +134,9 @@ int main() {
     // 3. init mapping and refine
     Mapping mapping;
     mapping.construct_initial_map(frames);
-    mapping.refine_map();
+    for (int i = 0;i < 5; i++) {
+        mapping.refine_map();
+    }
 
     // 4. save map
     MapSaver mapSaver;
