@@ -13,23 +13,23 @@ class Localization {
 public:
     Localization() = default;
     ~Localization() = default;
-    std::vector<int> sort_frames_by_distance(std::vector<Frame>& frames, Eigen::Matrix3d R, Eigen::Vector3d t);
-    std::vector<int> sort_frames_by_distance(std::vector<Frame>& frames, Eigen::Matrix4d T) {
+    std::vector<int> sort_frames_by_distance(std::vector<std::shared_ptr<Frame>>& frames, Eigen::Matrix3d R, Eigen::Vector3d t);
+    std::vector<int> sort_frames_by_distance(std::vector<std::shared_ptr<Frame>>& frames, Eigen::Matrix4d T) {
         return sort_frames_by_distance(frames, T.block<3, 3>(0, 0), T.block<3, 1>(0, 3));
     }
 };
 
-std::vector<int> Localization::sort_frames_by_distance(std::vector<Frame> &frames, Eigen::Matrix3d R, Eigen::Vector3d t) {
+std::vector<int> Localization::sort_frames_by_distance(std::vector<std::shared_ptr<Frame>> &frames, Eigen::Matrix3d R, Eigen::Vector3d t) {
     std::vector<int> sorted_ids;
     std::vector<double> sorted_distances;
     sorted_ids.reserve(frames.size());
     sorted_distances.reserve(frames.size());
     for (const auto& frame : frames) {
-        Eigen::Vector3d t_ = frame.get_t();
+        Eigen::Vector3d t_ = frame->get_t();
         Eigen::Vector3d t_diff = t_ - t;
         double distance = t_diff.norm();
         sorted_distances.push_back(distance);
-        sorted_ids.push_back(frame.id);
+        sorted_ids.push_back(frame->id);
     }
     std::sort(sorted_ids.begin(), sorted_ids.end(), [&sorted_distances](int i, int j) {
         return sorted_distances[i] < sorted_distances[j];
@@ -120,21 +120,21 @@ std::vector<std::string> read_img_path(const std::string& path, const std::strin
 
 int main() {
     MapSaver map_saver;
-    std::vector<Frame> frames;
+    std::vector<std::shared_ptr<Frame>> frames;
     Map map;
     Matcher matcher;
     Localization localization;
     map_saver.load_map("map.txt", frames, map);
 
     Visualization vis;
-    std::thread vis_thread(Visualization::run, &vis, std::ref(frames), std::ref(map));
+    std::thread vis_thread(Visualization::run, &vis, std::ref(map));
 
     Camera cam1, cam2;
     Eigen::Matrix4d T12;
     std::string cam_param_path = "/home/vio/Code/VIO/ORB_SLAM3/Examples/Stereo/TUM-VI.yaml";
     read_cam_params(cam_param_path, cam1, cam2, T12);
     for (auto& frame : frames) {
-        frame.camera = &cam1;
+        frame->camera = &cam1;
     }
     std::string img_path = "/home/vio/Datasets/TUM_VI/dataset-corridor2_512_16/mav0/cam0/data/";
     std::string img_list_path = "/home/vio/Code/VIO/ORB_SLAM3/Examples/Stereo/f_corridor2.txt";
@@ -143,24 +143,29 @@ int main() {
     Eigen::Matrix4d I = Eigen::Matrix4d::Identity();
     Eigen::Matrix4d init_T = I;
 //    img_list.resize(200);
+    std::shared_ptr<FeatureDetection> detection =
+            std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",
+                                               8, 1000, 512, 512);
+
     for (auto & img_cnt : img_list) {
         // 1. get the first frame
-        cv::Mat img1 = cv::imread(img_cnt, cv::IMREAD_GRAYSCALE);
-        std::shared_ptr<Frame> tgt_frame = std::make_shared<Frame>(0, init_T, img1, img1, &cam1, &cam1, I);
+        cv::Mat img1 = cv::imread(img_cnt);
+        std::cout<<"init T: "<<init_T<<std::endl;
+        std::shared_ptr<Frame> tgt_frame = std::make_shared<Frame>(0, detection, init_T, img1, img1, &cam1, &cam1, I);
 
         // 2. get close frames
         std::vector<int> close_frame_ids = localization.sort_frames_by_distance(frames, init_T);
 
         // 3. try match the closest 3 frames
-        for (int i = 0;i < 3;i ++) {
-            Frame& frame = frames[close_frame_ids[i]];
+        for (int i = 0;i < 5;i ++) {
+            std::shared_ptr<Frame> frame = frames[close_frame_ids[i]];
             tgt_frame->map_points.resize(tgt_frame->map_points.size(), nullptr);
             // 3.1 KNN match
-            std::vector<std::pair<int, int>> matches = matcher.match_knn(*tgt_frame, frame);
+            std::vector<std::pair<int, int>> matches = matcher.match_knn(*tgt_frame, *frame);
             int matches_num = 0;
             for (auto &match : matches) {
-                if (frame.map_points[match.second] != nullptr) {
-                    tgt_frame->map_points[match.first] = frame.map_points[match.second];
+                if (frame->map_points[match.second] != nullptr) {
+                    tgt_frame->map_points[match.first] = frame->map_points[match.second];
                     matches_num ++;
                 }
             }
@@ -168,7 +173,7 @@ int main() {
             BundleAdjustment ba;
             if (matches_num > 30) {
                 tgt_frame->set_T(init_T);
-                std::vector<bool> inliers = ba.optimize_pose(*tgt_frame);
+                std::vector<bool> inliers = ba.optimize_pose(tgt_frame);
 //                std::cout<<"T " << tgt_frame->get_T() << std::endl;;
                 int inliers_num = 0;
                 for (int j = 0;j < inliers.size();j ++) {
@@ -185,8 +190,8 @@ int main() {
             }
         }
 
-        std::vector<Frame*> connected_frames_1;
-        connected_frames_1 = frames[close_frame_ids[0]].get_connected_frames();
+        std::vector<std::shared_ptr<Frame>> connected_frames_1;
+        connected_frames_1 = frames[close_frame_ids[0]]->get_connected_frames();
 
         int add_num = 0;
         for (auto & frame : connected_frames_1) {
@@ -201,7 +206,7 @@ int main() {
         std::cout<<" add num: " << add_num << std::endl;
 
         BundleAdjustment ba;
-        std::vector<bool> inliers = ba.optimize_pose(*tgt_frame);
+        std::vector<bool> inliers = ba.optimize_pose(tgt_frame);
 //        std::cout<<"T " << tgt_frame->get_T() << std::endl;;
         int inliers_num = 0;
         for (int j = 0;j < inliers.size();j ++) {
@@ -216,6 +221,26 @@ int main() {
         vis.add_current_frame(tgt_frame);
 
 //        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+
+        cv::Mat show = tgt_frame->image.clone();
+        if (show.channels() == 1) {
+            cv::cvtColor(show, show, cv::COLOR_GRAY2BGR);
+        }
+
+        for (int i = 0;i < tgt_frame->map_points.size(); i++) {
+            const auto& mp = tgt_frame->map_points[i];
+            if (mp != nullptr) {
+                Eigen::Vector3d P = mp->x3D;
+                Eigen::Vector3d P_ = tgt_frame->get_R().transpose() * (P - tgt_frame->get_t());
+                Eigen::Vector2d uv = tgt_frame->get_camera()->project(P_);
+                double error = (uv - tgt_frame->get_features_uv()[i]).norm();
+                cv::circle(show, cv::Point((int)uv[0], (int)uv[1]), 4, cv::Scalar(0, 255, 0), 2);
+                cv::circle(show, cv::Point((int)tgt_frame->get_features_uv()[i][0], (int)tgt_frame->get_features_uv()[i][1]), 2, cv::Scalar(0, 0, 255), 2);
+            }
+        }
+        cv::imshow("image", show);
+        cv::waitKey(30);
     }
 
     vis_thread.join();

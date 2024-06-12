@@ -139,6 +139,7 @@ namespace VISUAL_MAPPING {
             frame->map_points.resize(feature_count, nullptr);
             frames.push_back(frame);
         }
+        map.frames_ = frames;
         // map points
         std::getline(file, line);
         int map_point_count = std::stoi(line);

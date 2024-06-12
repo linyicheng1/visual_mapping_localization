@@ -145,7 +145,7 @@ int main() {
 
 //    MapSaver mapSaver;
 //    Mapping mapping;
-//    std::vector<Frame> frames;
+//    std::vector<std::shared_ptr<Frame>> frames;
 //    mapSaver.load_map("map.txt", frames, mapping.map);
 
     // 5. visualization thread
