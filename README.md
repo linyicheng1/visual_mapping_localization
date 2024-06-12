@@ -2,12 +2,9 @@
 
 Learning-based feature map is constructed and used for robot localization by giving trajectory poses and corresponding images.
 
-<div style="display: flex;">
-  <img src="./asset/localization2.gif" alt="Image 1" style="width: 45%;"/>
-  <img src="./asset/localization.gif" alt="Image 2" style="width: 45%;"/>
-</div>
-
-
+| ![Image 1](./asset/localization2.gif) | ![Image 2](./asset/localization.gif) |
+|---------------------------------------|--------------------------------------|
+| Mono Localization | Localization Within ORB-SLAM3|
 ## Supported features
 - XFeat
 - SuperPoint
