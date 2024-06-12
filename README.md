@@ -1,6 +1,12 @@
-# visual_mapping_localization (TODO)
+# visual_mapping_localization
 
 Learning-based feature map is constructed and used for robot localization by giving trajectory poses and corresponding images.
+
+
+<div style="display: flex;">
+  <img src="./asset/localization2.gif" alt="Image 1" style="width: 50%;"/>
+  <img src="./asset/localization.gif" alt="Image 2" style="width: 50%;"/>
+</div>
 
 
 ## Supported features
@@ -10,9 +16,5 @@ Learning-based feature map is constructed and used for robot localization by giv
 - ALIKE-T
 - R2D2
 
-## Trajectory Format
-
-
 ## Usage
-
 
