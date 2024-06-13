@@ -105,7 +105,7 @@ int main() {
     // 1. read images list and camera parameters
     std::string img_path = "/home/vio/Datasets/TUM_VI/dataset-corridor2_512_16/mav0/cam0/data/";
     std::string img_path2 = "/home/vio/Datasets/TUM_VI/dataset-corridor2_512_16/mav0/cam1/data/";
-    std::string img_list_path = "/home/vio/Code/VIO/ORB_SLAM3/Examples/Stereo/kf_corridor2.txt";
+    std::string img_list_path = "/home/vio/Code/VIO/visual_localization/ORB_SLAM3_localization/Examples/Stereo/kf_corridor2_02.txt";
     std::vector<Eigen::Matrix4d> T;
     auto img_list = read_img_path(img_path, img_path2, img_list_path, T);
 
@@ -118,10 +118,10 @@ int main() {
     std::vector<std::string> feature_list;
 
     // 2. create frame
-//    img_list.resize(200);
+    img_list.resize(200);
     std::vector<std::shared_ptr<Frame>> frames;
     std::shared_ptr<FeatureDetection> detection =
-            std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",
+            std::make_shared<FeatureDetection>(SuperPoint, "/home/vio/Code/VIO/visual_localization/ORB_SLAM3_localization/visual_mapping_localization/learned_features_inference/weight/",
                                                8, 500, 512, 512);
     for (int i = 0; i < img_list.size(); i ++) {
         cv::Mat img1 = cv::imread(img_list[i].first);
