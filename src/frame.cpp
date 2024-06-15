@@ -12,6 +12,18 @@ namespace VISUAL_MAPPING {
 
     }
 
+    Frame::Frame(int id_, std::shared_ptr<FeatureDetection> detector, Eigen::Matrix4d T, cv::Mat &image_, Camera *cam) {
+        image = image_;
+        id = id_;
+        camera = cam;
+        R = T.block<3, 3>(0, 0);
+        t = T.block<3, 1>(0, 3);
+        // 1. detect features
+        detector_ptr = detector;
+        detector_ptr->detectFeatures(image_, features_uv, descriptors);
+        assign_features_to_grid();
+    }
+
     Frame::Frame(int id_, std::shared_ptr<FeatureDetection> detector, Eigen::Matrix4d T, cv::Mat &image_left, cv::Mat &image_right,
                  Camera *cam_left, Camera *cam_right, Eigen::Matrix4d &T12) {
         image = image_left;

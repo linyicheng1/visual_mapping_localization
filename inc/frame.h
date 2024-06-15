@@ -14,6 +14,7 @@ namespace VISUAL_MAPPING {
         ~Frame() = default;
         Frame(int id_, std::shared_ptr<FeatureDetection> detection, Eigen::Matrix4d T, cv::Mat& image_left, cv::Mat& image_right, Camera* cam_left, Camera* cam_right, Eigen::Matrix4d& T12);
         Frame(cv::Mat& image, std::vector<Eigen::Vector2d>& features_uv, std::vector<double>& features_depth, cv::Mat& descriptors, Camera* camera);
+        Frame(int id_, std::shared_ptr<FeatureDetection> detection, Eigen::Matrix4d T, cv::Mat& image, Camera* cam);
         Eigen::Matrix3d get_R() const { return R;}
         Eigen::Vector3d get_t() const { return t;}
         Eigen::Matrix4d get_T() const { Eigen::Matrix4d T; T.block<3, 3>(0, 0) = R; T.block<3, 1>(0, 3) = t; T.row(3) << 0, 0, 0, 1; return T;}
