@@ -31,7 +31,7 @@ namespace VISUAL_MAPPING {
         int IMG_HEIGHT = 480;
 
         std::string weights_path = "./weights/";
-        std::string sp_model_path = "sp.xml";
+        std::string sp_model_path = "sp_84.xml";
         std::string xfeat_model_path = "xfeat.xml";
         std::string d2net_model_path = "D2Net.xml";
         std::string disk_model_path = "disk.xml";

@@ -189,5 +189,10 @@ namespace VISUAL_MAPPING {
                 }
             }
         }
+
+        for (auto& f:frames) {
+            f->assign_features_to_grid();
+        }
+
     }
 }

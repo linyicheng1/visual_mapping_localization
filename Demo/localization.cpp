@@ -8,6 +8,8 @@
 #include "camera.h"
 
 using namespace VISUAL_MAPPING;
+#define IMAGE_WIDTH 800
+#define IMAGE_HEIGHT 400
 
 class Localization {
 public:
@@ -88,8 +90,43 @@ std::vector<std::string> read_img_path(const std::string& path, const std::strin
     file.open(list);
     std::vector<std::string> img_list;
     std::string line;
-    while (std::getline(file, line, ' ')) {
+    while (std::getline(file, line, '\n')) {
         img_list.emplace_back(path + line + ".png");
+//        Eigen::Matrix4d T_;
+//        Eigen::Vector3d t;
+//        Eigen::Quaterniond q;
+//        for (int i = 0;i < 6;i ++) {
+//            std::getline(file, line, ' ');
+//            if (i == 0) {
+//                t(0) = std::stod(line);
+//            } else if (i == 1) {
+//                t(1) = std::stod(line);
+//            } else if (i == 2) {
+//                t(2) = std::stod(line);
+//            } else if (i == 3) {
+//                q.x() = std::stod(line);
+//            } else if (i == 4) {
+//                q.y() = std::stod(line);
+//            } else if (i == 5) {
+//                q.z() = std::stod(line);
+//            }
+//        }
+//        std::getline(file, line, '\n');
+//        q.w() = std::stod(line);
+//        T_.block<3,3>(0,0) = q.toRotationMatrix();
+//        T_.block<3,1>(0,3) = t;
+//        T_.row(3) << 0, 0, 0, 1;
+    }
+    return img_list;
+}
+
+std::vector<std::string> read_img_path_kf(const std::string& path1, const std::string& list){
+    std::ifstream file;
+    file.open(list);
+    std::vector<std::string> img_list;
+    std::string line;
+    while (std::getline(file, line, ' ')) {
+        img_list.emplace_back(path1 + line + ".png");
         Eigen::Matrix4d T_;
         Eigen::Vector3d t;
         Eigen::Quaterniond q;
@@ -131,23 +168,32 @@ int main() {
 
     Camera cam1, cam2;
     Eigen::Matrix4d T12;
-    std::string cam_param_path = "/home/vio/Code/VIO/ORB_SLAM3/Examples/Stereo/TUM-VI.yaml";
+    std::string cam_param_path = "/home/vio/Code/VIO/visual_localization/ORB_SLAM3_localization/Examples/Stereo/4seasons.yaml";
     read_cam_params(cam_param_path, cam1, cam2, T12);
     for (auto& frame : frames) {
         frame->camera = &cam1;
     }
-    std::string img_path = "/home/vio/Datasets/TUM_VI/dataset-corridor2_512_16/mav0/cam0/data/";
-    std::string img_list_path = "/home/vio/Code/VIO/ORB_SLAM3/Examples/Stereo/f_corridor2.txt";
+    std::string img_path = "/home/vio/Datasets/4seasons/recording_2021-05-10_19-15-19/undistorted_images/cam0/";
+    std::string img_list_path = "/home/vio/Datasets/4seasons/recording_2021-05-10_19-15-19/times-0.txt";
+
+    std::string img_path_kf = "/home/vio/Datasets/4seasons/recording_2020-12-22_12-04-35/undistorted_images/cam0/";
+    std::string img_list_path_kf = "/home/vio/Code/VIO/visual_localization/ORB_SLAM3_localization/Examples/Stereo/kf_corridor2_02.txt";
+
     auto img_list = read_img_path(img_path, img_list_path);
+    auto img_list_kf = read_img_path_kf(img_path_kf, img_list_path_kf);
 
     Eigen::Matrix4d I = Eigen::Matrix4d::Identity();
     Eigen::Matrix4d init_T = I;
 //    img_list.resize(200);
     std::shared_ptr<FeatureDetection> detection =
             std::make_shared<FeatureDetection>(SuperPoint, "../learned_features_inference/weight/",
-                                               8, 1000, 512, 512);
-
+                                               8, 1000, 800, 400);
+    int cnt = 0;
     for (auto & img_cnt : img_list) {
+        cnt ++;
+        if (cnt < 500)
+            continue;
+        std::cout<<"cnt: "<<cnt<<std::endl;
         // 1. get the first frame
         cv::Mat img1 = cv::imread(img_cnt);
         std::cout<<"init T: "<<init_T<<std::endl;
@@ -155,6 +201,21 @@ int main() {
 
         // 2. get close frames
         std::vector<int> close_frame_ids = localization.sort_frames_by_distance(frames, init_T);
+        cv::Mat img_kf = cv::imread(img_list_kf[close_frame_ids[0]+157]);
+        std::shared_ptr<Frame> kf_frame = std::make_shared<Frame>(0, detection, init_T, img_kf, img_kf, &cam1, &cam1, I);
+        std::vector<std::pair<int, int>> matches_kf = matcher.match_knn(*tgt_frame, *kf_frame);
+        cv::Mat img_matches = cv::Mat(IMAGE_HEIGHT, IMAGE_WIDTH * 2, CV_8UC3);
+        img1.copyTo(img_matches(cv::Rect(0, 0, IMAGE_WIDTH, IMAGE_HEIGHT)));
+        img_kf.copyTo(img_matches(cv::Rect(IMAGE_WIDTH, 0, IMAGE_WIDTH, IMAGE_HEIGHT)));
+
+        for (const auto m:matches_kf) {
+            Eigen::Vector2d pt1 = tgt_frame->get_features_uv()[m.first];
+            Eigen::Vector2d pt2 = kf_frame->get_features_uv()[m.second];
+            cv::line(img_matches, cv::Point2f((float)pt2.x(), (float)pt2.y()),
+                     cv::Point2f((float)pt2.x() + IMAGE_WIDTH, (float)pt2.y()),
+                     cv::Scalar(0, 255, 0), 2);
+        }
+        cv::imshow("matches", img_matches);
 
         // 3. try match the closest 3 frames
         for (int i = 0;i < 5;i ++) {
@@ -183,40 +244,62 @@ int main() {
                         inliers_num ++;
                     }
                 }
-                if (inliers_num > 10) {
-                    std::cout<<" first inliers: " << inliers_num << std::endl;
+            }
+
+            matches = matcher.match_re_projective(tgt_frame, frame);
+            matches_num = 0;
+            for (auto &match : matches) {
+                if (frame->map_points[match.second] != nullptr) {
+                    tgt_frame->map_points[match.first] = frame->map_points[match.second];
+                    matches_num ++;
+                }
+            }
+            if (matches_num > 30) {
+                tgt_frame->set_T(init_T);
+                std::vector<bool> inliers = ba.optimize_pose(tgt_frame);
+//                std::cout<<"T " << tgt_frame->get_T() << std::endl;;
+                int inliers_num = 0;
+                for (int j = 0;j < inliers.size();j ++) {
+                    if (!inliers[j]) {
+                        tgt_frame->map_points[j] = nullptr;
+                    } else {
+                        inliers_num ++;
+                    }
+                }
+                if (inliers_num > 30) {
+                    std::cout<<" second inliers: " << inliers_num << std::endl;
                     break;
                 }
             }
         }
 
-        std::vector<std::shared_ptr<Frame>> connected_frames_1;
-        connected_frames_1 = frames[close_frame_ids[0]]->get_connected_frames();
-
-        int add_num = 0;
-        for (auto & frame : connected_frames_1) {
-            std::vector<std::pair<int, int>> matches = matcher.match_projective(*tgt_frame, frame->map_points);
-            for (auto &match : matches) {
-                if (tgt_frame->map_points[match.first] == nullptr && frame->map_points[match.second] != nullptr) {
-                    tgt_frame->map_points[match.first] = frame->map_points[match.second];
-                    add_num ++;
-                }
-            }
-        }
-        std::cout<<" add num: " << add_num << std::endl;
-
-        BundleAdjustment ba;
-        std::vector<bool> inliers = ba.optimize_pose(tgt_frame);
-//        std::cout<<"T " << tgt_frame->get_T() << std::endl;;
-        int inliers_num = 0;
-        for (int j = 0;j < inliers.size();j ++) {
-            if (!inliers[j]) {
-                tgt_frame->map_points[j] = nullptr;
-            } else {
-                inliers_num ++;
-            }
-        }
-        std::cout<<" end inliers: " << inliers_num << std::endl;
+//        std::vector<std::shared_ptr<Frame>> connected_frames_1;
+//        connected_frames_1 = frames[close_frame_ids[0]]->get_connected_frames();
+//
+//        int add_num = 0;
+//        for (auto & frame : connected_frames_1) {
+//            std::vector<std::pair<int, int>> matches = matcher.match_projective(*tgt_frame, frame->map_points);
+//            for (auto &match : matches) {
+//                if (tgt_frame->map_points[match.first] == nullptr && frame->map_points[match.second] != nullptr) {
+//                    tgt_frame->map_points[match.first] = frame->map_points[match.second];
+//                    add_num ++;
+//                }
+//            }
+//        }
+//        std::cout<<" add num: " << add_num << std::endl;
+//
+//        BundleAdjustment ba;
+//        std::vector<bool> inliers = ba.optimize_pose(tgt_frame);
+////        std::cout<<"T " << tgt_frame->get_T() << std::endl;;
+//        int inliers_num = 0;
+//        for (int j = 0;j < inliers.size();j ++) {
+//            if (!inliers[j]) {
+//                tgt_frame->map_points[j] = nullptr;
+//            } else {
+//                inliers_num ++;
+//            }
+//        }
+//        std::cout<<" end inliers: " << inliers_num << std::endl;
         init_T = tgt_frame->get_T();
         vis.add_current_frame(tgt_frame);
 
@@ -240,7 +323,7 @@ int main() {
             }
         }
         cv::imshow("image", show);
-        cv::waitKey(30);
+        cv::waitKey(10);
     }
 
     vis_thread.join();

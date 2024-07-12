@@ -35,6 +35,9 @@ namespace VISUAL_MAPPING {
         // features
         std::vector<Eigen::Vector2d> features_uv;
         Camera* camera;
+
+        void assign_features_to_grid();
+
     private:
 
         // frame pose
@@ -44,7 +47,6 @@ namespace VISUAL_MAPPING {
         // related frames
         std::vector<std::shared_ptr<Frame>> related_frames;
 
-        void assign_features_to_grid();
         std::vector<std::size_t> mGrid[200][200];
         std::shared_ptr<FeatureDetection> detector_ptr;
     };

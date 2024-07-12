@@ -63,6 +63,16 @@ namespace VISUAL_MAPPING {
             }
         }
         assign_features_to_grid();
+//        cv::Mat show = image_left.clone();
+//        for (int i = 0; i < features_uv.size(); i++) {
+//            if (features_depth[i] > 0) {
+//                cv::circle(show, cv::Point(features_uv[i][0], features_uv[i][1]), 2, cv::Scalar(0, 255, 0), 2);
+//            } else {
+//                cv::circle(show, cv::Point(features_uv[i][0], features_uv[i][1]), 2, cv::Scalar(0, 0, 255), 2);
+//            }
+//        }
+//        cv::imshow("show", show);
+//        cv::waitKey(0);
 //        std::cout << "Triangulated " << cnt << " points" << std::endl;
     }
 

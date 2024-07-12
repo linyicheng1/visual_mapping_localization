@@ -198,7 +198,20 @@ namespace VISUAL_MAPPING {
                                 if (c_frames[i]->map_points[c_ids[i]] != nullptr) {
                                     map.remove_map_point(c_frames[i]->map_points[c_ids[i]]->id);
                                 }
-                                c_frames[i]->map_points[c_ids[i]] = mp;
+                                const auto del_mp = c_frames[i]->map_points[c_ids[i]];
+                                if (del_mp != nullptr) {
+                                    for (int j = 0;j < del_mp->frame_ids.size();j ++) {
+                                        int c_frame_id = del_mp->frame_ids[j];
+                                        int c_feature_id = del_mp->feature_ids[j];
+                                        Eigen::Vector2d c_uv = del_mp->features_uv[j];
+                                        map.frames_[c_frame_id]->map_points[c_feature_id] = mp;
+                                        mp->add_frame(c_frame_id, c_feature_id, 0, c_uv, mp->x3D);
+                                    }
+                                } else {
+                                    c_frames[i]->map_points[c_ids[i]] = mp;
+                                    mp->add_frame(c_frames[i]->id, c_ids[i], 0, c_frames[i]->get_features_uv()[c_ids[i]], mp->x3D);
+                                }
+
                             }
                         }
 

@@ -257,7 +257,7 @@ namespace VISUAL_MAPPING {
         std::vector<EdgeSE3ProjectXYZOnlyPose*> vpEdgesMono;
         std::vector<bool> inliers;
         vpEdgesMono.reserve(frame->map_points.size());
-        inliers.resize(frame->map_points.size(), true);
+        inliers.resize(frame->map_points.size(), false);
         for (int i = 0; i < frame->map_points.size(); i++) {
             if (frame->map_points[i] == nullptr) {
                 continue;
@@ -296,7 +296,7 @@ namespace VISUAL_MAPPING {
             int in = 0,  out = 0;
             for (auto e : vpEdgesMono) {
                 e->computeError();
-                if (e->chi2() > 5.991) {
+                if (e->chi2() > 25.991) {
                     e->setLevel(1);
                     out ++;
                 } else {
@@ -312,7 +312,7 @@ namespace VISUAL_MAPPING {
         // 5. outliers
         for (const auto& e : vpEdgesMono) {
             e->computeError();
-            if (e->chi2() < 5.991 && e->isDepthPositive()) {
+            if (e->chi2() < 25.991 && e->isDepthPositive()) {
                 inliers[e->id()] = true;
             } else {
                 inliers[e->id()] = false;
