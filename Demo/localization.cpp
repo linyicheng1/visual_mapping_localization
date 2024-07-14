@@ -222,11 +222,11 @@ int main() {
             std::shared_ptr<Frame> frame = frames[close_frame_ids[i]];
             tgt_frame->map_points.resize(tgt_frame->map_points.size(), nullptr);
             // 3.1 KNN match
-            std::vector<std::pair<int, int>> matches = matcher.match_knn(*tgt_frame, *frame);
+            std::vector<std::pair<int, int>> matches = matcher.match_knn(*frame, *tgt_frame);
             int matches_num = 0;
             for (auto &match : matches) {
-                if (frame->map_points[match.second] != nullptr) {
-                    tgt_frame->map_points[match.first] = frame->map_points[match.second];
+                if (frame->map_points[match.first] != nullptr) {
+                    tgt_frame->map_points[match.second] = frame->map_points[match.first];
                     matches_num ++;
                 }
             }
@@ -246,11 +246,11 @@ int main() {
                 }
             }
 
-            matches = matcher.match_re_projective(tgt_frame, frame);
+            matches = matcher.match_re_projective(frame, tgt_frame);
             matches_num = 0;
             for (auto &match : matches) {
-                if (frame->map_points[match.second] != nullptr) {
-                    tgt_frame->map_points[match.first] = frame->map_points[match.second];
+                if (frame->map_points[match.first] != nullptr) {
+                    tgt_frame->map_points[match.second] = frame->map_points[match.first];
                     matches_num ++;
                 }
             }
