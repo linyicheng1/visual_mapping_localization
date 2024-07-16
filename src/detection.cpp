@@ -43,6 +43,10 @@ namespace VISUAL_MAPPING {
     }
 
     void FeatureDetection::detectFeatures(cv::Mat &image, std::vector<Eigen::Vector2d> &features_uv, cv::Mat &descriptors) {
+        cv::Mat mask = cv::Mat::ones(image.size(), CV_8UC1) * 255;
+        // 最下方100行不检测特征点
+        mask(cv::Rect(0, image.rows - 100, image.cols, 100)) = 0;
+
         if (type == SIFT) {
             // 1. detect sift features
             auto sift = cv::SIFT::create();
@@ -66,7 +70,7 @@ namespace VISUAL_MAPPING {
         } else if (type == SuperPoint || type == ALIKE || type == D2Net || type == DISK || type == XFeat) {
             net_ptr->run(image, score_map, desc_map);
             std::vector<cv::KeyPoint> key_points;
-            key_points = nms(score_map, num_kps, 0.01, nms_size, cv::Mat());
+            key_points = nms(score_map, num_kps, 0.01, nms_size, mask);
             for (auto &keypoint : key_points) {
                 features_uv.emplace_back(keypoint.pt.x, keypoint.pt.y);
             }

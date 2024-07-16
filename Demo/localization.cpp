@@ -323,7 +323,7 @@ int main() {
             }
         }
         cv::imshow("image", show);
-        cv::waitKey(10);
+        cv::waitKey(1);
     }
 
     vis_thread.join();

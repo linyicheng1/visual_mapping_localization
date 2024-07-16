@@ -117,6 +117,8 @@ int main() {
     std::string feature_list_path = "/home/vio/Dataset/features.yaml";
     std::vector<std::string> feature_list;
 
+    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE(3.0, cv::Size(8, 8));
+
     // 2. create frame
 //    img_list.resize(20);
     std::vector<std::shared_ptr<Frame>> frames;
@@ -130,8 +132,13 @@ int main() {
         i = init_T.inverse() * i;
     }
     for (int i = 0; i < img_list.size(); i ++) {
-        cv::Mat img1 = cv::imread(img_list[i].first);
-        cv::Mat img2 = cv::imread(img_list[i].second);
+        cv::Mat img1 = cv::imread(img_list[i].first, cv::IMREAD_GRAYSCALE);
+        cv::Mat img2 = cv::imread(img_list[i].second, cv::IMREAD_GRAYSCALE);
+        clahe->apply(img1, img1);
+        clahe->apply(img2, img2);
+        cv::cvtColor(img1, img1, cv::COLOR_GRAY2BGR);
+        cv::cvtColor(img2, img2, cv::COLOR_GRAY2BGR);
+
         auto frame = std::make_shared<Frame>(i, detection, T[i], img1, img2, &cam1, &cam2, T12);
         std::cout<<"frame "<<i<<std::endl;
         frames.push_back(frame);

@@ -269,7 +269,7 @@ namespace VISUAL_MAPPING {
             e->setMeasurement(frame->features_uv[i]);
             e->setInformation(Eigen::Matrix2d::Identity());
             auto* rk = new g2o::RobustKernelHuber;
-            rk->setDelta(1.0);
+            rk->setDelta(2.0);
             e->setRobustKernel(rk);
 
             e->pCamera= frame->camera;
@@ -296,7 +296,7 @@ namespace VISUAL_MAPPING {
             int in = 0,  out = 0;
             for (auto e : vpEdgesMono) {
                 e->computeError();
-                if (e->chi2() > 25.991) {
+                if (e->chi2() > 5.991) {
                     e->setLevel(1);
                     out ++;
                 } else {
@@ -312,7 +312,7 @@ namespace VISUAL_MAPPING {
         // 5. outliers
         for (const auto& e : vpEdgesMono) {
             e->computeError();
-            if (e->chi2() < 25.991 && e->isDepthPositive()) {
+            if (e->chi2() < 5.991 && e->isDepthPositive()) {
                 inliers[e->id()] = true;
             } else {
                 inliers[e->id()] = false;
