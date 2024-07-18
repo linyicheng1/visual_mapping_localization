@@ -11,7 +11,9 @@ namespace VISUAL_MAPPING {
         ~Mapping() = default;
         void construct_initial_map(std::vector<std::shared_ptr<Frame>>& frames);
         void refine_map();
+        void add_points();
         Map map;
+        int map_point_cnt = 0;
     };
 }
 

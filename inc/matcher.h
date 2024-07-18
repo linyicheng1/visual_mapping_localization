@@ -20,6 +20,7 @@ namespace VISUAL_MAPPING {
                                                       std::vector<Eigen::Vector2d>& features_uv_right,
                                                       cv::Mat& descriptors_left, cv::Mat& descriptors_right);
         std::vector<std::pair<int, int>> match_knn(Frame& frame1, Frame& frame2);
+        std::vector<std::pair<int, int>> match_descriptor(cv::Mat descriptors1, cv::Mat descriptors2);
     };
 }
 

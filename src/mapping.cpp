@@ -18,7 +18,6 @@ namespace VISUAL_MAPPING {
      */
     void Mapping::construct_initial_map(std::vector<std::shared_ptr<Frame>>& frames) {
         map.frames_ = frames;
-        int map_point_cnt = 0; // map point id
         int frame_cnt = 0; // frame id
 
         std::cout << "step 1: Constructing initial map points for stereo !" << std::endl;
@@ -273,6 +272,98 @@ namespace VISUAL_MAPPING {
 
         std::cout << "Refine map step 3: full bundle adjustment !" << std::endl;
         ba.optimize_ba(map);
+
+        std::cout << "Refine map step 4: add more map points !" << std::endl;
+        add_points();
     }
 
+    void Mapping::add_points() {
+        Matcher matcher;
+        for (auto& frame : map.frames_) {
+            int frame_mps_cnt = 0;
+            // 1. calculate the number of map points in the frame
+            for (auto& mp : frame->map_points) {
+                if (mp != nullptr) {
+                    frame_mps_cnt++;
+                }
+            }
+            // 2. if the number of map points is less than 100, add more map points
+            if (frame_mps_cnt < 100) {
+                std::cout<<" frame id: "<<frame->id<<" with "<<frame_mps_cnt<<" map points"<<std::endl;
+                // 2.1. find the connected frames
+                std::vector<std::shared_ptr<Frame>> connected_frames;
+                for (const auto& f : map.connected_frames[frame->id]) {
+                    connected_frames.push_back(f);
+                }
+                // 2.2 map point matching
+                for (const auto& c_frame:connected_frames) {
+                    std::vector<std::pair<int, int>> matches = matcher.match_re_projective(c_frame, frame);
+                    for (const auto&match:matches) {
+                        const auto& mp0 = c_frame->map_points[match.first];
+                        auto& mp1 = frame->map_points[match.second];
+                        if (mp0 != nullptr && mp1 == nullptr) {
+                            mp1 = mp0;
+                            frame_mps_cnt ++;
+                        }
+                    }
+                }
+                std::cout<<" first add map points: "<<frame_mps_cnt<<std::endl;
+                // 2.3 add new map points
+
+                if (frame_mps_cnt < 100) {
+
+                    // 1. features wait to be matched
+                    cv::Mat descriptors((int)frame->features_uv.size() - frame_mps_cnt, frame->descriptors.cols, frame->descriptors.type());
+                    std::vector<int> ids;
+
+                    ids.reserve(frame->features_uv.size() - frame_mps_cnt);
+                    descriptors.reserve(frame->features_uv.size() - frame_mps_cnt);
+
+                    for (int i = 0;i < frame->features_uv.size();i ++) {
+                        if (frame->map_points[i] == nullptr) {
+                            frame->descriptors.row(i).copyTo(descriptors.row((int)ids.size()));
+                            ids.emplace_back(i);
+                        }
+                    }
+
+                    // 2. match with all connected frames
+                    std::vector<std::vector<std::pair<int, int>>> matches;
+
+                    for (const auto&c_frame:connected_frames) {
+                        matches.emplace_back(matcher.match_descriptor(descriptors, c_frame->descriptors));
+                    }
+
+                    std::vector<std::vector<int>> matched_ids;
+                    std::vector<int> tmp;
+                    tmp.resize(connected_frames.size(), -1);
+                    matched_ids.resize((int)frame->features_uv.size() - frame_mps_cnt, tmp);
+
+                    for (int i = 0;i < connected_frames.size();i ++) {
+                        for (const auto& m:matches[i]) {
+                            matched_ids[m.first][i] = m.second;
+                        }
+                    }
+
+                    // 3. triangulate the map points
+                    Triangulation triangulation;
+                    std::vector<std::pair<double, double>> results = triangulation.multiview_triangulate(frame, ids, connected_frames, matched_ids);
+
+                    for (int i = 0;i < results.size(); i++) {
+                        const auto&result = results[i];
+                        if (result.first > 0) {
+                            // create a new map point and add it to the map
+                            Eigen::Vector3d x3D = frame->get_camera()->pixel2camera(frame->features_uv[ids[i]], result.first);
+                            x3D = frame->get_R() * x3D + frame->get_t();
+                            std::shared_ptr<MapPoint> map_point = std::make_shared<MapPoint>(frame->features_uv[ids[i]], x3D, result.second, frame->id, i, map_point_cnt);
+                            frame->map_points[i] = map_point;
+                            map.add_map_point(map_point);
+                            map_point_cnt ++;
+                            frame_mps_cnt ++;
+                        }
+                    }
+                    std::cout<<"second add map points: "<<frame_mps_cnt<<std::endl;
+                }
+            }
+        }
+    }
 }

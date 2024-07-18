@@ -183,6 +183,23 @@ namespace VISUAL_MAPPING {
         return matches;
     }
 
+    std::vector<std::pair<int, int>> Matcher::match_descriptor(cv::Mat descriptors1, cv::Mat descriptors2) {
+        std::vector<std::pair<int, int>> matches;
+        // 1. brute force matching
+        cv::BFMatcher matcher(cv::NORM_L2);
+        std::vector<std::vector<cv::DMatch>> knn_matches;
+        std::vector<cv::DMatch> good_matches;
+        matcher.knnMatch(descriptors1, descriptors2, knn_matches, 2);
+        // 2. filter matches
+        for (int i = 0; i < knn_matches.size(); i++) {
+            if (knn_matches[i][0].distance < 0.8 * knn_matches[i][1].distance) {
+                matches.emplace_back(i, knn_matches[i][0].trainIdx);
+                good_matches.push_back(knn_matches[i][0]);
+            }
+        }
+        return matches;
+    }
+
     std::vector<std::pair<int, int>>
     Matcher::match_projective(Frame &frame, std::vector<std::shared_ptr<MapPoint>> map_points) {
         std::vector<std::pair<int, int>> matches;

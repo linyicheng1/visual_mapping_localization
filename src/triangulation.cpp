@@ -80,4 +80,42 @@ namespace VISUAL_MAPPING {
         return std::make_pair(z1, uncertainty);
     }
 
+    std::vector<std::pair<double, double>> Triangulation::multiview_triangulate(std::shared_ptr<Frame> frame,
+                                                                                std::vector<int> ids,
+                                                                                std::vector<std::shared_ptr<Frame>> c_frames,
+                                                                                std::vector<std::vector<int>> matches)
+    {
+        std::vector<std::pair<double, double>> results;
+        results.resize(ids.size(), std::make_pair(-1, 100));
+
+        std::vector<int> triangulate_ids;
+        Eigen::Vector3d t0 = frame->get_t();
+        std::vector<double> distances;
+
+        // 1. distance between frames
+        for (int i = 0; i < c_frames.size(); i++) {
+            Eigen::Vector3d t1 = c_frames[i]->get_t();
+            distances.emplace_back((t0 - t1).norm());
+            triangulate_ids.emplace_back(i);
+        }
+        // sort by distances, high to low
+        std::sort(triangulate_ids.begin(), triangulate_ids.end(), [&distances](int i, int j) {
+            return distances[i] > distances[j];
+        });
+
+        for (int i = 0; i< ids.size(); i ++) {
+            std::vector<int> match = matches[i];
+            for (const auto& id:triangulate_ids) {
+                if (match[id] > 0) {
+                    Eigen::Matrix3d R = frame->get_R().transpose() * c_frames[id]->get_R();
+                    Eigen::Vector3d t = frame->get_R().transpose() * (c_frames[id]->get_t() - frame->get_t());
+                    results[i] = triangulate(frame->get_camera(), c_frames[id]->get_camera(),
+                                             frame->features_uv[ids[i]], c_frames[id]->features_uv[match[id]],
+                                             R, t);
+                }
+            }
+        }
+        return results;
+    }
+
 }
