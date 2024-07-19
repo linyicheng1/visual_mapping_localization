@@ -123,7 +123,7 @@ int main() {
 //    img_list.resize(20);
     std::vector<std::shared_ptr<Frame>> frames;
     std::shared_ptr<FeatureDetection> detection =
-            std::make_shared<FeatureDetection>(SuperPoint, "/home/vio/Code/VIO/visual_localization/ORB_SLAM3_localization/visual_mapping_localization/learned_features_inference/weight/",
+            std::make_shared<FeatureDetection>(D2Net, "/home/vio/Code/VIO/visual_localization/ORB_SLAM3_localization/visual_mapping_localization/learned_features_inference/weight/",
                                                8, 500, 800, 400);
     img_list.erase(img_list.begin(), img_list.begin() + 157);
     T.erase(T.begin(), T.begin() + 157);
@@ -155,8 +155,8 @@ int main() {
     }
 
     // 4. save map
-    MapSaver mapSaver;
-    mapSaver.save_map("map.txt", frames, mapping.map);
+    MapSaver  mapSaver;
+    mapSaver.save_map("map_d2net.txt", frames, mapping.map);
 
 //    MapSaver mapSaver2;
 //    Mapping mapping2;
